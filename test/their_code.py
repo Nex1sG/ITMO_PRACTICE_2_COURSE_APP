@@ -36,7 +36,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import config
+from backend import config
 from telemetry.recorder import CsvRecorder
 
 
@@ -205,6 +205,7 @@ def main():
                     help="vibrator state for this run (the ML label)")
     ap.add_argument("--no-fly", action="store_true",
                     help="do NOT arm/fly — just log sensors (safe bench test)")
+
     args = ap.parse_args()
 
     settings = config.load_settings()
