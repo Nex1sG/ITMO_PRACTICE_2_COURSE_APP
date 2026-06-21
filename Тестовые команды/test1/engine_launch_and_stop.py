@@ -27,7 +27,7 @@ def test_of_subscribe_function(*args):
     print(args)
 
 pioneer = Pioneer(tcp="10.42.0.1:20556", wait_callback=True, safety_command=True)
-pioneer.subscribe(Event.ENGINE_STARTED, test_of_subscribe_function)
+pioneer.subscribe(Event.ENGINES_STARTED, test_of_subscribe_function)
 
 try:
     print("Попытка запустить двигатели...")
@@ -35,12 +35,22 @@ try:
         raise RuntimeError("Не удалось запустить двигатели")
 
     sleep(3)
+
+    if not pioneer.takeoff():
+        raise RuntimeError("Не взлетает")
+
+    sleep(3)
+
+    if not pioneer.land():
+        raise RuntimeError("Не садится")
+
     print("Двигатели успешно запущены!")
 
 except Exception as e:
     print(f"Ошибка: {e}")
 
 finally:
+    sleep(10)
     pioneer.disarm()
     pioneer.close_connection()
     print("Двигатели остановлены и соединение закрыто.")
