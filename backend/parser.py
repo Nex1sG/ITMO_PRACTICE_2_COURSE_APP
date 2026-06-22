@@ -107,12 +107,12 @@ def parse():
     )
 
     '''
-    no-fly - Safe bench-test mode.
+    no_fly - Safe bench-test mode.
     The drone will not arm or take off.
     Only telemetry logging is performed.
     '''
     ap.add_argument(
-        "--no-fly",
+        "--no_fly",
         action="store_true",
         help="do not arm/fly, only log sensors"
     )
