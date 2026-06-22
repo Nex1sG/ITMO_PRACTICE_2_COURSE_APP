@@ -86,6 +86,7 @@ def parse():
     '''
     ap.add_argument(
         "--reps",
+
         type=int,
         default=1,
         help="pattern repetitions"
