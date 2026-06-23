@@ -36,7 +36,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend import config
+from config import config
 from telemetry.recorder import CsvRecorder
 
 
