@@ -68,9 +68,11 @@ class FleetManager:
             t.start()
             threads.append(t)
 
+        # Ждём завершения всех
         for t in threads:
             t.join()
 
+        # Отключаем всех
         for d in self.drones:
             d.close()
 

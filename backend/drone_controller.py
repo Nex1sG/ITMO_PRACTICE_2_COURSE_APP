@@ -11,7 +11,6 @@ class DroneController:
             self, tcp: str, alt: float = 1.0, size: float = 1.0,
             reps: int = 1, interval: float = 0.05, no_fly: bool = False):
 
-        # for experiment initialization(flight)
         self.tcp = tcp
         self.alt = alt
         self.size = size
@@ -33,31 +32,35 @@ class DroneController:
         self.drone_id = None
         self.pattern = None
 
-    # utils for connection and copter moving
     def _require_connection(self):
         if self.drone is None:
             raise RuntimeError("Drone is not connected")
 
     def goto(self, x, y, z, yaw=0, wait=3):
         self._require_connection()
-        self.drone.go_to_local_point(x=x, y=y, z=z, yaw=yaw)
+        self.drone.go_to_local_point(x=x, y=y, z=z, yaw_angle=yaw)
         time.sleep(wait)
 
     def takeoff_and_hover(self):
+        """Упрощённый взлёт — логирование начинается ПОСЛЕ взлёта"""
         self._require_connection()
+
+        print(f"[{self.drone_id}] Arming...")
         if not self.drone.arm():
             raise RuntimeError("Arm failed")
-        time.sleep(2)
-        if not self.drone.takeoff():
-            raise RuntimeError("Takeoff failed")
+
+        print(f"[{self.drone_id}] Taking off...")
+        self.drone.takeoff()
         time.sleep(5)
+
         self.goto(0, 0, self.alt)
 
-    # utils for thread logging
+        self.start_logging()
+        print(f"[{self.drone_id}] Logging started")
+
     def start_logging(self):
         self.logs.clear()
         self.is_logging.set()
-
         self.experiment_start_time = time.time()
 
         self.log_thread = threading.Thread(
@@ -71,25 +74,32 @@ class DroneController:
         if self.log_thread and self.log_thread.is_alive():
             self.log_thread.join(timeout=2)
 
-    # --tcp
     def connect(self):
         print(f"Connecting to {self.tcp}...")
         self.drone = Pioneer(tcp=self.tcp, logger=True)
         print("Connected")
-
         if self.drone_id is None:
             self.drone_id = self.tcp
 
     def close(self):
         if self.drone is None:
             return
-        self.drone.close_connection()
-        self.logger.close()
+        try:
+            self.drone.close_connection()
+        except Exception as e:
+            print(f"[{self.drone_id}] Disconnect error: {e}")
+        try:
+            self.logger.close()
+        except Exception:
+            pass
         print(f"Connection closed for {self.drone_id}")
 
-    # telemetry
     def get_telemetry(self):
-        pos = self.drone.get_position()
+        # Используем правильные имена методов SDK2
+        try:
+            pos = self.drone.get_local_position_lps()
+        except Exception:
+            pos = None
 
         position = None
         if pos is not None:
@@ -99,13 +109,43 @@ class DroneController:
                 "z": getattr(pos, "z", None),
             }
 
+        try:
+            battery = self.drone.get_battery_status()
+        except Exception:
+            battery = None
+
+        try:
+            orientation = self.drone.get_orientation()
+        except Exception:
+            orientation = None
+
+        try:
+            accel = self.drone.get_accel()
+        except Exception:
+            accel = None
+
+        try:
+            gyro = self.drone.get_gyro()
+        except Exception:
+            gyro = None
+
+        try:
+            mag = self.drone.get_mag()
+        except Exception:
+            mag = None
+
+        try:
+            rpm = self.drone.get_motors_rpm()
+        except Exception:
+            rpm = None
+
         return {
-            "battery": self.drone.get_battery_status(),
-            "orientation": self.drone.get_orientation(),
-            "accel": self.drone.get_accel(),
-            "gyro": self.drone.get_gyro(),
-            "mag": self.drone.get_mag(),
-            "rpm": self.drone.get_motors_rpm(),
+            "battery": battery,
+            "orientation": orientation,
+            "accel": accel,
+            "gyro": gyro,
+            "mag": mag,
+            "rpm": rpm,
             "position": position
         }
 
@@ -136,23 +176,26 @@ class DroneController:
                 with self.logs_lock:
                     self.logs.append(log_entry)
             except Exception as e:
-                print(f"[{self.drone_id}] Monitor error: {e}")
+                # Тихо игнорируем ошибки в мониторинге
+                pass
 
             time.sleep(self.interval)
 
-    # migration work
+    # Паттерны полёта
     def hover(self):
-        self.start_logging()
+
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
                 time.sleep(15)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def line(self):
-        self.start_logging()
+
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -160,12 +203,13 @@ class DroneController:
                 for _ in range(self.reps):
                     self.goto(s, 0, self.alt)
                     self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def backforth(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -174,12 +218,13 @@ class DroneController:
                     self.goto(s, 0, self.alt)
                     self.goto(-s, 0, self.alt)
                     self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def square(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -190,12 +235,13 @@ class DroneController:
                     self.goto(-s, -s, self.alt)
                     self.goto(s, -s, self.alt)
                 self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def rectangle(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -207,12 +253,13 @@ class DroneController:
                     self.goto(-w, -h, self.alt)
                     self.goto(w, -h, self.alt)
                 self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def triangle(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -222,12 +269,13 @@ class DroneController:
                     self.goto(-s, -s, self.alt)
                     self.goto(s, -s, self.alt)
                 self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def circle(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -237,12 +285,13 @@ class DroneController:
                         a = 2 * math.pi * i / 24
                         self.goto(r * math.cos(a), r * math.sin(a), self.alt, wait=0.5)
                 self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
     def figure8(self):
-        self.start_logging()
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
@@ -254,7 +303,9 @@ class DroneController:
                         y = r * math.sin(t) * math.cos(t)
                         self.goto(x, y, self.alt, wait=0.4)
                 self.goto(0, 0, self.alt)
+                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
+                self.drone.disarm()
         finally:
             self.stop_logging()
 
