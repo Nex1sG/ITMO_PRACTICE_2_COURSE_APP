@@ -36,10 +36,20 @@ class DroneController:
         if self.drone is None:
             raise RuntimeError("Drone is not connected")
 
-    def goto(self, x, y, z, yaw=0, wait=3):
+    def goto(self, x, y, z, yaw=0, timeout=15):
         self._require_connection()
         self.drone.go_to_local_point(x=x, y=y, z=z, yaw_angle=yaw)
-        time.sleep(wait)
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                if self.drone.point_reached():
+                    return True
+            except Exception:
+                pass
+            time.sleep(0.1)
+
+        print(f"[{self.drone_id}] Point timeout: {x, y, z}")
+        return False
 
     def takeoff_and_hover(self):
         """Упрощённый взлёт — логирование начинается ПОСЛЕ взлёта"""
@@ -183,29 +193,35 @@ class DroneController:
 
     # Паттерны полёта
     def hover(self):
-
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
                 time.sleep(15)
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
     def line(self):
-
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 s = min(self.size, 0.4)
+
                 for _ in range(self.reps):
-                    self.goto(s, 0, self.alt)
-                    self.goto(0, 0, self.alt)
+                    if not self.goto(s, 0, self.alt):
+                        return
+                    if not self.goto(0, 0, self.alt):
+                        return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -213,14 +229,21 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 s = min(self.size, 0.4)
+
                 for _ in range(self.reps):
-                    self.goto(s, 0, self.alt)
-                    self.goto(-s, 0, self.alt)
-                    self.goto(0, 0, self.alt)
+                    if not self.goto(s, 0, self.alt):
+                        return
+                    if not self.goto(-s, 0, self.alt):
+                        return
+                    if not self.goto(0, 0, self.alt):
+                        return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -228,16 +251,26 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 s = min(self.size, 0.35)
+
                 for _ in range(self.reps):
-                    self.goto(s, s, self.alt)
-                    self.goto(-s, s, self.alt)
-                    self.goto(-s, -s, self.alt)
-                    self.goto(s, -s, self.alt)
-                self.goto(0, 0, self.alt)
+                    if not self.goto(s, s, self.alt):
+                        return
+                    if not self.goto(-s, s, self.alt):
+                        return
+                    if not self.goto(-s, -s, self.alt):
+                        return
+                    if not self.goto(s, -s, self.alt):
+                        return
+
+                if not self.goto(0, 0, self.alt):
+                    return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -245,17 +278,27 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 w = min(self.size, 0.45)
                 h = w / 2
+
                 for _ in range(self.reps):
-                    self.goto(w, h, self.alt)
-                    self.goto(-w, h, self.alt)
-                    self.goto(-w, -h, self.alt)
-                    self.goto(w, -h, self.alt)
-                self.goto(0, 0, self.alt)
+                    if not self.goto(w, h, self.alt):
+                        return
+                    if not self.goto(-w, h, self.alt):
+                        return
+                    if not self.goto(-w, -h, self.alt):
+                        return
+                    if not self.goto(w, -h, self.alt):
+                        return
+
+                if not self.goto(0, 0, self.alt):
+                    return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -263,15 +306,24 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 s = min(self.size, 0.4)
+
                 for _ in range(self.reps):
-                    self.goto(0, s, self.alt)
-                    self.goto(-s, -s, self.alt)
-                    self.goto(s, -s, self.alt)
-                self.goto(0, 0, self.alt)
+                    if not self.goto(0, s, self.alt):
+                        return
+                    if not self.goto(-s, -s, self.alt):
+                        return
+                    if not self.goto(s, -s, self.alt):
+                        return
+
+                if not self.goto(0, 0, self.alt):
+                    return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -279,15 +331,26 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 r = min(self.size, 0.3)
+
                 for _ in range(self.reps):
                     for i in range(24):
                         a = 2 * math.pi * i / 24
-                        self.goto(r * math.cos(a), r * math.sin(a), self.alt, wait=0.5)
-                self.goto(0, 0, self.alt)
+
+                        x = r * math.cos(a)
+                        y = r * math.sin(a)
+
+                        if not self.goto(x, y, self.alt):
+                            return
+
+                if not self.goto(0, 0, self.alt):
+                    return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
@@ -295,17 +358,26 @@ class DroneController:
         try:
             if not self.no_fly:
                 self.takeoff_and_hover()
+
                 r = min(self.size, 0.25)
+
                 for _ in range(self.reps):
                     for i in range(48):
                         t = 2 * math.pi * i / 48
+
                         x = r * math.sin(t)
                         y = r * math.sin(t) * math.cos(t)
-                        self.goto(x, y, self.alt, wait=0.4)
-                self.goto(0, 0, self.alt)
+
+                        if not self.goto(x, y, self.alt):
+                            return
+
+                if not self.goto(0, 0, self.alt):
+                    return
+
                 print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
+
         finally:
             self.stop_logging()
 
