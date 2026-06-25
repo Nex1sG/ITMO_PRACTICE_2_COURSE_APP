@@ -16,9 +16,5 @@
             "ip": "192.168.1.13",
             "port": 20556
         }
-    },
-    "logging": {
-        "interval": 0.05,
-        "save_path": "logs/"
     }
 }

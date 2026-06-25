@@ -1,3 +1,5 @@
 .vscode/
 backend/__pycache__/
 utils/__pycache__/
+config/__pycache__/
+gui/__pycache__/
