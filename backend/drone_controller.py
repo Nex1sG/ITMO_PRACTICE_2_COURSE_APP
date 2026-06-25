@@ -1,8 +1,11 @@
 import time
 import math
 import threading
+from collections import deque
 from pioneer_sdk2 import Pioneer
+from threading import Barrier
 from backend.data_logger import DataLogger
+from backend.realtime_processor import RealtimeTelemetryProcessor
 
 
 class DroneController:
@@ -22,6 +25,18 @@ class DroneController:
         self.log_thread = None; self.experiment_start_time = None
 
         self.experiment_id = None; self.drone_id = None; self.pattern = None
+
+        self.buffer_size = 200; self.time_buffer = deque(maxlen=self.buffer_size)
+        self.x_buffer = deque(maxlen=self.buffer_size);self.y_buffer = deque(maxlen=self.buffer_size)
+        self.z_buffer = deque(maxlen=self.buffer_size); self.realtime = RealtimeTelemetryProcessor(buffer_size=200)
+        self.ax_buffer = deque(maxlen=self.buffer_size)
+        self.ay_buffer = deque(maxlen=self.buffer_size)
+        self.az_buffer = deque(maxlen=self.buffer_size)
+
+        self.battery_buffer = deque(maxlen=self.buffer_size)
+
+
+        self.barrier = Barrier(1)
 
     def _require_connection(self):
         if self.drone is None: raise RuntimeError("Drone is not connected")
@@ -74,10 +89,19 @@ class DroneController:
 # ===================
 
     def start_logging(self):
-        if self.is_logging.is_set():return
-        if not self.logger:raise RuntimeError("Logger not initialized. Call connect() first.")
+        if self.is_logging.is_set():
+            return
+
+            # 🔥 FIX: защита от гонки
+        if self.drone is None:
+            raise RuntimeError("Drone not connected yet")
+
+        if self.logger is None:
+            raise RuntimeError("Logger not initialized (connect not finished)")
+
         self.experiment_start_time = time.time()
         self.is_logging.set()
+
         self.log_thread = threading.Thread(target=self.monitor, daemon=True)
         self.log_thread.start()
 
@@ -139,18 +163,58 @@ class DroneController:
             "battery": safe_get(battery, 0) if isinstance(battery, (list, tuple)) else battery,
         }
 
+    # def monitor(self):
+    #     while self.is_logging.is_set():
+    #         try:
+    #             if not self.drone or not self.logger:
+    #                 time.sleep(self.interval)
+    #                 continue
+    #             log = self.make_log()
+    #             self.logger.write(log)
+    #
+    #         except Exception as e: print(f"[{self.drone_id}] logging error: {e}")
+    #         time.sleep(self.interval)
+
     def monitor(self):
         while self.is_logging.is_set():
             try:
                 if not self.drone or not self.logger:
                     time.sleep(self.interval)
                     continue
-                log = self.make_log()
-                self.logger.write(log)
 
-            except Exception as e: print(f"[{self.drone_id}] logging error: {e}")
+                log = self.make_log()  # 👈 СНАЧАЛА лог
+
+                self.logger.write(log)
+                self.realtime.update(log)
+
+                self.time_buffer.append(log["t"])
+
+                self.x_buffer.append(log["x"])
+                self.y_buffer.append(log["y"])
+                self.z_buffer.append(log["z"])
+
+                self.ax_buffer.append(log["ax"])
+                self.ay_buffer.append(log["ay"])
+                self.az_buffer.append(log["az"])
+
+                self.battery_buffer.append(log["battery"])
+
+            except Exception as e:
+                print(f"[{self.drone_id}] logging error: {e}")
+
             time.sleep(self.interval)
 
+    def get_realtime_data(self):
+        return {
+            "t": list(self.time_buffer),
+            "x": list(self.x_buffer),
+            "y": list(self.y_buffer),
+            "z": list(self.z_buffer),
+            "ax": list(self.ax_buffer),
+            "ay": list(self.ay_buffer),
+            "az": list(self.az_buffer),
+            "battery": list(self.battery_buffer)
+        }
 # ===================
 #   ПАТТЕРНЫ ПОЛЁТА
 # ===================
@@ -174,12 +238,13 @@ class DroneController:
             if not self.goto(0, 0, self.alt): return
 
     def square(self):
-        s = min(self.size, 0.35)
+        s = min(self.size, 1.2)
         for _ in range(self.reps):
             if not self.goto(s, s, self.alt): return
             if not self.goto(-s, s, self.alt): return
             if not self.goto(-s, -s, self.alt): return
             if not self.goto(s, -s, self.alt): return
+            if not self.goto(s, s, self.alt): return
             if not self.goto(0, 0, self.alt): return
 
     def rectangle(self):
@@ -227,22 +292,27 @@ class DroneController:
 # ===================
 
     def _run_pattern(self, fn):
+        if self.no_fly:
+            print("Simulation mode")
+            return
+        self._require_connection()
+
+        self.takeoff_and_hover()
+
         self.start_logging()
+
         try:
-            if self.no_fly:
-                print("Simulation mode")
-                return
-            self.takeoff_and_hover()
             fn()
-        except Exception as e: print(f"[{self.drone_id}] pattern error: {e}")
+        except Exception as e:
+            print(f"[{self.drone_id}] pattern error: {e}")
 
         finally:
+            self.stop_logging()
             try:
-                print(f"[{self.drone_id}] Landing...")
                 self.drone.land()
                 self.drone.disarm()
-            except: pass
-            self.stop_logging()
+            except:
+                pass
 
     def execute_pattern(self, pattern: str):
         if not self.drone: raise RuntimeError("Not connected")
@@ -253,4 +323,5 @@ class DroneController:
 
         fn = patterns.get(pattern)
         if not fn: raise ValueError(f"Unknown pattern: {pattern}")
+        self.barrier.wait()
         self._run_pattern(fn)

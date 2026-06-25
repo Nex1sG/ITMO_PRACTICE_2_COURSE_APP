@@ -1,5 +1,8 @@
 import time
+import math
 import threading
+from collections import deque
+from pioneer_sdk2 import Pioneer
 from backend.drone_controller import DroneController
 
 
@@ -40,40 +43,22 @@ class FleetManager:
     def run(self):
         self.setup_fleet()
 
-        if not self.drones:
-            print("No drones configured!")
-            return
-
-        # Подключаем всех
+        # 1. connect ВСЕХ
         for d in self.drones:
-            try:
-                d.connect()
-            except Exception as e:
-                print(f"Failed to connect {d.drone_id}: {e}")
+            d.connect()
 
-        # Синхронизируем время старта
-        start_time = time.time()
-        for d in self.drones:
-            d.experiment_start_time = start_time
-            d.experiment_id = "exp_001"
+        # 2. wait safety barrier (важно)
+        time.sleep(0.5)
 
-        # Запускаем параллельно
+        # 3. только потом запуск pattern
         threads = []
         for d in self.drones:
             t = threading.Thread(
                 target=d.execute_pattern,
-                args=(self.pattern,),
-                name=d.drone_id
+                args=(self.pattern,)
             )
             t.start()
             threads.append(t)
 
-        # Ждём завершения всех
         for t in threads:
             t.join()
-
-        # Отключаем всех
-        for d in self.drones:
-            d.close()
-
-        print("All drones finished.")
