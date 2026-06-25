@@ -10,12 +10,8 @@ from backend.realtime_processor import RealtimeTelemetryProcessor
 
 class DroneController:
 
-# ===================
-# ИНИЦИАЛИЗАЦИЯ И ПОДКЛЮЧЕНИЕ К КОПТЕРУ
-# ===================
 
-    def __init__(
-            self, tcp: str, alt: float = 1.0, size: float = 1.0,
+    def __init__(self, tcp: str, alt: float = 1.0, size: float = 1.0,
             reps: int = 1, interval: float = 0.05, no_fly: bool = False):
 
         self.tcp = tcp; self.alt = alt; self.size = size; self.reps = reps

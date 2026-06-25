@@ -1,5 +1,7 @@
 from collections import deque
 from pioneer_sdk2 import Pioneer
+
+
 class RealtimeTelemetryProcessor:
     def __init__(self, buffer_size=300):
         self.buffer_size = buffer_size

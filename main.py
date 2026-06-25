@@ -29,22 +29,17 @@ def main():
         no_fly=args.no_fly
     )
 
-    # 1. СНАЧАЛА создаём Qt
     app = QApplication(sys.argv)
 
-    # 2. Запускаем fleet В ФОНЕ
     fleet_thread = threading.Thread(target=fleet.run, daemon=True)
     fleet_thread.start()
 
-    # 3. ждём пока drones появятся (важно)
     import time
     while not fleet.drones:
         time.sleep(0.1)
 
-    # 4. берём первый контроллер
     controller = fleet.drones[0]
 
-    # 5. создаём GUI
     window = RealtimePlot(controller.get_realtime_data)
     window.show()
 

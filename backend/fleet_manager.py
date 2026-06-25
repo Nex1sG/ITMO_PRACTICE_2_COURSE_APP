@@ -43,14 +43,11 @@ class FleetManager:
     def run(self):
         self.setup_fleet()
 
-        # 1. connect ВСЕХ
         for d in self.drones:
             d.connect()
 
-        # 2. wait safety barrier (важно)
         time.sleep(0.5)
 
-        # 3. только потом запуск pattern
         threads = []
         for d in self.drones:
             t = threading.Thread(
