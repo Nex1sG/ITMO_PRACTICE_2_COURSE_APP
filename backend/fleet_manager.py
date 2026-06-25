@@ -33,7 +33,7 @@ class FleetManager:
                 interval=self.interval,
                 no_fly=self.no_fly
             )
-            drone.drone_id = f"drone_{i}"
+            drone.drone_id = f"drone_{i+1}"
             drone.pattern = self.pattern
             self.drones.append(drone)
 
