@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QCheckBox, QHBoxLayout, QLabel, QPushButton
 )
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 
@@ -67,10 +68,10 @@ class RealtimePlot(QWidget):
             if not data or not data.get("t"):
                 return
             
-            t = data["t"]
-            t = [x for x in t if x is not None]
+            t = [x for x in data["t"] if x is not None]
             if not t:
                 return
+
             self.ax_position.clear()
             self.ax_accel.clear()
             self.ax_battery.clear()
@@ -123,11 +124,10 @@ class RealtimePlot(QWidget):
                     self.ax_battery.set_visible(False)
             else:
                 self.ax_battery.set_visible(False)
-            if any([self.ax_position.get_visible(), 
-                   self.ax_accel.get_visible(), 
-                   self.ax_battery.get_visible()]):
-                self.figure.tight_layout()
-                self.canvas.draw()
+            if any([self.ax_position.get_visible(), self.ax_accel.get_visible(), self.ax_battery.get_visible()]):
+                self.canvas.draw_idle()  # draw_idle безопаснее для Qt, чем draw()
+        except Exception as e:
+            print(f"[RealtimePlot] Error updating plot: {e}")
         
         except Exception as e:
             print(f"[RealtimePlot] Error updating plot: {e}")

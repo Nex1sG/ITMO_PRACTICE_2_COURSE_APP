@@ -386,15 +386,25 @@ class MainWindow(QMainWindow):
             self.btn_stop.setEnabled(False)
 
     def wait_for_connection_and_plot(self):
-        while self.is_running:
-            if self.fleet and self.fleet.drones:
-                try:
-                    QTimer.singleShot(0, self.create_all_plots)
-                    return
-                except Exception as e:
-                    print(f"Ошибка создания графиков: {e}")
-                    return
+        """Ожидает подключения и создаёт графики"""
+        max_wait = 10  # Максимум 10 секунд ждём
+        start_time = time.time()
+        
+        while self.is_running and (time.time() - start_time) < max_wait:
+            if self.fleet and hasattr(self.fleet, 'drones') and self.fleet.drones:
+                # Проверяем, что хотя бы один дрон начал логирование
+                for drone in self.fleet.drones:
+                    if drone.is_logging.is_set():
+                        try:
+                            QTimer.singleShot(0, self.create_all_plots)
+                            return
+                        except Exception as e:
+                            print(f"Ошибка создания графиков: {e}")
+                            return
             time.sleep(0.2)
+        
+        if self.is_running:
+            print("Warning: Графики не созданы - дроны не начали логирование")
 
 
     def create_all_plots(self):

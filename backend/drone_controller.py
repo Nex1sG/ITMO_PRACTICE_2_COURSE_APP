@@ -296,20 +296,26 @@ class DroneController:
         if self.no_fly:
             print(f"[{self.drone_id}] Simulation mode (no_fly=True)")
             return
+        
         self._require_connection()
         self.takeoff_and_hover()
         self.start_logging()
+        
         try:
             fn()
         except Exception as e:
             print(f"[{self.drone_id}] pattern error: {e}")
         finally:
             self.stop_logging()
+            print(f"[{self.drone_id}] Landing sequence initiated...")
             try:
                 self.drone.land()
+                # Ждём завершения посадки (таймаут 15 сек)
+                time.sleep(5) 
                 self.drone.disarm()
-            except:
-                pass
+                print(f"[{self.drone_id}] Disarmed successfully.")
+            except Exception as e:
+                print(f"[{self.drone_id}] Landing/Disarm error: {e}")
 
     def execute_pattern(self, pattern: str):
         if not self.drone:

@@ -2,13 +2,13 @@
     "drones": [
         {
             "id": "drone_1",
-            "ip": "192.168.1.42",
+            "ip": "10.42.0.1",
             "port": 20556,
-            "alt": 1.0,
-            "pattern": "hover",
+            "alt": 1.5,
+            "pattern": "square",
             "size": 1.0,
             "reps": 1,
-            "duration": 20.0,
+            "duration": 30.0,
             "interval": 0.05,
             "no_fly": false
         }
