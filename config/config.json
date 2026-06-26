@@ -2,37 +2,13 @@
     "drones": [
         {
             "id": "drone_1",
-            "ip": "10.42.0.1",
+            "ip": "192.168.1.42",
             "port": 20556,
             "alt": 2.0,
             "pattern": "circle",
             "size": 1.0,
             "reps": 1,
             "duration": 20.0,
-            "interval": 0.05,
-            "no_fly": false
-        },
-        {
-            "id": "drone_2",
-            "ip": "192.168.1.11",
-            "port": 20556,
-            "alt": 5.0,
-            "pattern": "square",
-            "size": 1.0,
-            "reps": 2,
-            "duration": 60.0,
-            "interval": 0.05,
-            "no_fly": false
-        },
-        {
-            "id": "drone_3",
-            "ip": "10.42.0.1",
-            "port": 20556,
-            "alt": 1.0,
-            "pattern": "hover",
-            "size": 1.0,
-            "reps": 1,
-            "duration": 60.0,
             "interval": 0.05,
             "no_fly": false
         }

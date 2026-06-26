@@ -6,3 +6,5 @@ gui/__pycache__/
 .idea/
 .venv/
 python312/
+combine.py
+combined_all.txt
