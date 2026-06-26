@@ -1,20 +1,28 @@
 {
-    "drones": {
-        "drone_1": {
+    "drones": [
+        {
+            "id": "drone_1",
             "ip": "192.168.1.10",
-            "port": 20556
+            "port": 20556,
+            "alt": 1.0,
+            "pattern": "circle",
+            "size": 2.0,
+            "reps": 1,
+            "duration": 60.0,
+            "interval": 0.05,
+            "no_fly": false
         },
-        "drone_2": {
+        {
+            "id": "drone_2",
             "ip": "192.168.1.11",
-            "port": 20556
-        },
-        "drone_3": {
-            "ip": "192.168.1.12",
-            "port": 20556
-        },
-        "drone_4": {
-            "ip": "192.168.1.13",
-            "port": 20556
+            "port": 20556,
+            "alt": 1.5,
+            "pattern": "square",
+            "size": 1.0,
+            "reps": 2,
+            "duration": 60.0,
+            "interval": 0.05,
+            "no_fly": false
         }
-    }
+    ]
 }
