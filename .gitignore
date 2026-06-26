@@ -8,3 +8,6 @@ gui/__pycache__/
 python312/
 combine.py
 combined_all.txt
+build/
+dist/
+main.spec

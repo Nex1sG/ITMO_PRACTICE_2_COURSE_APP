@@ -3,7 +3,7 @@ import math
 import threading
 from collections import deque
 from pioneer_sdk2 import Pioneer
-from threading import Barrier
+from threading import Barrier, BrokenBarrierError
 from backend.data_logger import DataLogger
 from backend.realtime_processor import RealtimeTelemetryProcessor
 
@@ -328,5 +328,9 @@ class DroneController:
         if not fn:
             raise ValueError(f"Unknown pattern: {pattern}")
         if self.barrier:
-            self.barrier.wait()
+            try:
+                self.barrier.wait()
+            except BrokenBarrierError:
+                print(f"[{self.drone_id}] Barrier broken (sync failed). Aborting pattern.")
+                return
         self._run_pattern(fn)

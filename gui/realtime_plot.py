@@ -39,6 +39,8 @@ class RealtimePlot(QWidget):
         self.ax_battery.set_visible(False)
         self._setup_axes()
         
+        self.figure.tight_layout()
+
         self.setLayout(layout)
         self.startTimer(100)  # 10 Hz
     

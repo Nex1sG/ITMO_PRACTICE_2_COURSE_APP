@@ -40,28 +40,38 @@ class FleetManager:
         self.setup_fleet()
         
         print("[FleetManager] Connecting to drones...")
+        connected_drones = []
         for i, d in enumerate(self.drones):
             try:
                 d.connect()
+                connected_drones.append(d)
                 print(f"[FleetManager] Drone {i+1} connected")
             except Exception as e:
                 print(f"[FleetManager] Failed to connect drone {i+1}: {e}")
             time.sleep(0.5)
-        
+
+        if not connected_drones:
+            print("[FleetManager] No drones connected. Aborting.")
+            return
+
+        # 🔥 Создаём барьер ТОЛЬКО для подключённых дронов
+        shared_barrier = Barrier(len(connected_drones), timeout=5.0)
+        for d in connected_drones:
+            d.barrier = shared_barrier
+
         print("[FleetManager] Starting flight threads...")
         threads = []
-        for i, d in enumerate(self.drones):
+        for d in connected_drones:
             t = threading.Thread(
                 target=d.execute_pattern,
-                args=(self.pattern,)
+                args=(self.pattern,),
+                daemon=True
             )
             t.start()
             threads.append(t)
-            print(f"[FleetManager] Thread started for drone {i+1}")
-        
+            print(f"[FleetManager] Thread started for {d.drone_id}")
+
         print("[FleetManager] Waiting for all drones to complete...")
-        for i, t in enumerate(threads):
+        for t in threads:
             t.join()
-            print(f"[FleetManager] Drone {i+1} completed")
-        
         print("[FleetManager] All drones finished")
