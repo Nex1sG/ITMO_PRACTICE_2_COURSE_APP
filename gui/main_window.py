@@ -431,23 +431,26 @@ class MainWindow(QMainWindow):
             if self.fleet and self.fleet.drones:
                 try:
                     controller = self.fleet.drones[0]
-                    QTimer.singleShot(0, lambda: self.create_plot(controller))
+                    QTimer.singleShot()
                     return
                 except Exception as e:
                     print(f"Ошибка создания графика: {e}")
                     return
             time.sleep(0.2)
 
-    def create_plot(self, controller):
+    def create_plot(self):
         while self.plot_layout.count():
             child = self.plot_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-        window = RealtimePlot(controller.get_realtime_data)
-        self.plot_layout.addWidget(window)
-        window.show()
+            if child.widget(): child.widget().deleteLater()
+            
+        # Создаём вкладки для каждого дрона
+        self.drone_plots = QTabWidget()
+        for i, drone in enumerate(self.fleet.drones):
+            plot = RealtimePlot(drone.get_realtime_data, drone_name=f"Дрон {i+1}")
+            self.drone_plots.addTab(plot, f"Дрон {i+1}")
+            
+        self.plot_layout.addWidget(self.drone_plots)
         self.status_label.setText("Статус: ПОЛЁТ / ЛОГИРОВАНИЕ")
-        QMessageBox.information(self, "Запуск успешен", "Дроны подключены. Графики обновляются.")
 
     def stop_fleet(self):
         self.is_running = False

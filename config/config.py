@@ -2,7 +2,8 @@ import json
 import os
 from typing import List, Dict, Any
 
-CONFIG_FILE = "config/config.json"
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
 
 DEFAULT_DRONE_SETTINGS = {
     "ip": "10.42.0.1",
