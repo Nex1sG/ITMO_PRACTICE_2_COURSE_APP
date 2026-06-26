@@ -45,8 +45,6 @@ def add_drone(drone_data: Dict[str, Any]) -> None:
     Автоматически генерирует ID, если он не передан.
     """
     drones = load_drones()
-    
-    # Генерируем уникальный ID (drone_1, drone_2 и т.д.)
     new_id = f"drone_{len(drones) + 1}"
     drone_data["id"] = drone_data.get("id", new_id)
     
@@ -58,7 +56,6 @@ def remove_drone(drone_id: str) -> None:
     Удаляет дрона из списка по его ID и сохраняет файл.
     """
     drones = load_drones()
-    # Оставляем только тех дронов, чей ID не совпадает с удаляемым
     drones = [d for d in drones if d.get("id") != drone_id]
     save_drones(drones)
 

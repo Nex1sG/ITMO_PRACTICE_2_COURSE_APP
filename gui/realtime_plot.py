@@ -14,13 +14,9 @@ class RealtimePlot(QWidget):
         self.setWindowTitle(f"Telemetry: {drone_name}")
         
         layout = QVBoxLayout()
-        
-        # Заголовок
         self.title_label = QLabel(f"📊 {drone_name}")
         self.title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(self.title_label)
-        
-        # Чекбоксы
         checkbox_layout = QHBoxLayout()
         self.cb_xyz = QCheckBox("Position (X/Y/Z)")
         self.cb_accel = QCheckBox("Acceleration (X/Y/Z)")
@@ -33,27 +29,17 @@ class RealtimePlot(QWidget):
         checkbox_layout.addWidget(self.cb_accel)
         checkbox_layout.addWidget(self.cb_battery)
         layout.addLayout(checkbox_layout)
-        
-        # Matplotlib с несколькими осями
         self.figure = Figure(figsize=(8, 6))
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
-        
-        # Создаем оси для разных типов данных
         self.ax_position = self.figure.add_subplot(311)
         self.ax_accel = self.figure.add_subplot(312, sharex=self.ax_position)
         self.ax_battery = self.figure.add_subplot(313, sharex=self.ax_position)
-        
-        # Скрываем оси, которые не используются
         self.ax_accel.set_visible(False)
         self.ax_battery.set_visible(False)
-        
-        # Настройка осей
         self._setup_axes()
         
         self.setLayout(layout)
-        
-        # Таймер обновления
         self.startTimer(100)  # 10 Hz
     
     def _setup_axes(self):
@@ -76,27 +62,17 @@ class RealtimePlot(QWidget):
     def timerEvent(self, event):
         try:
             data = self.data_source()
-            
-            # Проверка на валидные данные
             if not data or not data.get("t"):
                 return
             
             t = data["t"]
-            
-            # Фильтруем None значения
             t = [x for x in t if x is not None]
             if not t:
                 return
-            
-            # Очищаем оси
             self.ax_position.clear()
             self.ax_accel.clear()
             self.ax_battery.clear()
-            
-            # Перенастраиваем оси
             self._setup_axes()
-            
-            # Position X/Y/Z
             if self.cb_xyz.isChecked():
                 has_valid_data = False
                 
@@ -114,8 +90,6 @@ class RealtimePlot(QWidget):
                     self.ax_position.set_visible(False)
             else:
                 self.ax_position.set_visible(False)
-            
-            # Acceleration X/Y/Z
             if self.cb_accel.isChecked():
                 has_valid_data = False
                 
@@ -133,16 +107,12 @@ class RealtimePlot(QWidget):
                     self.ax_accel.set_visible(False)
             else:
                 self.ax_accel.set_visible(False)
-            
-            # Battery
             if self.cb_battery.isChecked() and "battery" in data and data["battery"]:
                 values = [v for v in data["battery"] if v is not None]
                 if len(values) == len(t):
                     self.ax_battery.plot(t, values, label="Battery", color="darkgreen", linewidth=2)
                     self.ax_battery.legend(loc='upper right', fontsize=8)
                     self.ax_battery.set_visible(True)
-                    
-                    # Добавляем горизонтальную линию минимального напряжения
                     min_battery = min(values) if values else 0
                     if min_battery > 0:
                         self.ax_battery.axhline(y=10.5, color='red', linestyle=':', alpha=0.5, label='Min (10.5V)')
@@ -151,8 +121,6 @@ class RealtimePlot(QWidget):
                     self.ax_battery.set_visible(False)
             else:
                 self.ax_battery.set_visible(False)
-            
-            # Обновляем canvas только если есть что показать
             if any([self.ax_position.get_visible(), 
                    self.ax_accel.get_visible(), 
                    self.ax_battery.get_visible()]):
@@ -161,4 +129,3 @@ class RealtimePlot(QWidget):
         
         except Exception as e:
             print(f"[RealtimePlot] Error updating plot: {e}")
-            # Не прерываем работу при ошибке отрисовки

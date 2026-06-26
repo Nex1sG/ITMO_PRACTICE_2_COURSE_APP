@@ -1,4 +1,3 @@
-# gui/main_window.py
 import sys
 import time
 import threading
@@ -12,8 +11,6 @@ from PySide6.QtCore import Qt, QTimer
 from config.config import load_drones, save_drones
 from backend.fleet_manager import FleetManager
 from gui.realtime_plot import RealtimePlot
-
-# ==================== ВАЛИДАТОРЫ ДЛЯ ТАБЛИЦЫ ====================
 class PatternDelegate(QStyledItemDelegate):
     """Выпадающий список для Pattern"""
     PATTERNS = ["hover", "line", "backforth", "square", "rectangle", 
@@ -54,38 +51,23 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Система контроля дронов и визуализации телеметрии")
         self.resize(1500, 900)  # Чуть увеличил окно по умолчанию
-
-        # Применяем стиль ко всему приложению
         self.setStyleSheet(self.get_global_style())
-
-        # Состояние системы
         self.fleet = None
         self.fleet_thread = None
         self.is_running = False
-
-        # Основной виджет
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
-
-        # Табы
         self.tabs = QTabWidget()
-        # Увеличиваем шрифт вкладок
         self.tabs.setStyleSheet("QTabBar::tab { font-size: 14px; padding: 10px 20px; }")
         main_layout.addWidget(self.tabs)
-
-        # === ВКЛАДКА 1: НАСТРОЙКИ ДРОНОВ ===
         self.tab_settings = QWidget()
         self.setup_settings_tab()
         self.tabs.addTab(self.tab_settings, "1. Настройка дронов")
-
-        # === ВКЛАДКА 2: УПРАВЛЕНИЕ И ГРАФИКИ ===
         self.tab_control = QWidget()
         self.setup_control_tab()
         self.tabs.addTab(self.tab_control, "2. Полёт и Графики")
-
-        # Загружаем данные при старте
         self.refresh_table()
 
     def get_global_style(self):
@@ -133,8 +115,6 @@ class MainWindow(QMainWindow):
 
     def setup_settings_tab(self):
         layout = QVBoxLayout(self.tab_settings)
-
-        # Таблица
         self.table = QTableWidget()
         self.table.setColumnCount(10)
         self.table.setHorizontalHeaderLabels([
@@ -143,17 +123,11 @@ class MainWindow(QMainWindow):
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setAlternatingRowColors(True)
-        
-        # Увеличиваем высоту строк таблицы для удобства
         self.table.verticalHeader().setDefaultSectionSize(40)
-        
-        # Делегаты
         self.table.setItemDelegateForColumn(4, PatternDelegate())
         self.table.setItemDelegateForColumn(9, NoFlyDelegate())
         
         layout.addWidget(self.table)
-
-        # Кнопки
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15) # Отступы между кнопками
         
@@ -179,12 +153,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(self.tab_control)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
-
-        # Панель управления (сверху)
         control_panel = QHBoxLayout()
         control_panel.setSpacing(15)
-        
-        # Кнопка запуска - зеленая
         self.btn_start = QPushButton("ЗАПУСТИТЬ ФЛОТ")
         self.btn_start.setStyleSheet("""
             QPushButton {
@@ -199,8 +169,6 @@ class MainWindow(QMainWindow):
             QPushButton:disabled { background-color: #555753; color: #888888; }
         """)
         self.btn_start.clicked.connect(self.start_fleet)
-        
-        # Кнопка остановки - красная
         self.btn_stop = QPushButton("ОСТАНОВИТЬ")
         self.btn_stop.setStyleSheet("""
             QPushButton {
@@ -224,21 +192,14 @@ class MainWindow(QMainWindow):
         control_panel.addWidget(self.btn_stop)
         control_panel.addWidget(self.status_label)
         layout.addLayout(control_panel)
-
-        # Разделительная линия
         line = QWidget()
         line.setFixedHeight(2)
         line.setStyleSheet("background-color: #555753;")
         layout.addWidget(line)
-
-        # Область графиков
         self.plot_container = QWidget()
         self.plot_container.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
         self.plot_layout = QVBoxLayout(self.plot_container)
         layout.addWidget(self.plot_container)
-
-    # ==================== ЛОГИКА ТАБЛИЦЫ ====================
-    # ... (код методов refresh_table, add_drone_dialog, save_to_json, delete_drone остается без изменений) ...
     def refresh_table(self):
         drones = load_drones()
         self.table.setRowCount(0)
@@ -389,8 +350,6 @@ class MainWindow(QMainWindow):
             save_drones(drones)
             self.refresh_table()
             QMessageBox.information(self, "Готово", f"Дрон {drone_id} удалён")
-
-    # ==================== ЛОГИКА ЗАПУСКА ====================
     def start_fleet(self):
         if self.is_running:
             return
@@ -430,27 +389,39 @@ class MainWindow(QMainWindow):
         while self.is_running:
             if self.fleet and self.fleet.drones:
                 try:
-                    controller = self.fleet.drones[0]
-                    QTimer.singleShot()
+                    QTimer.singleShot(0, self.create_all_plots)
                     return
                 except Exception as e:
-                    print(f"Ошибка создания графика: {e}")
+                    print(f"Ошибка создания графиков: {e}")
                     return
             time.sleep(0.2)
 
-    def create_plot(self):
+
+    def create_all_plots(self):
+        """Создаёт вкладки с графиками для каждого дрона"""
         while self.plot_layout.count():
             child = self.plot_layout.takeAt(0)
-            if child.widget(): child.widget().deleteLater()
-            
-        # Создаём вкладки для каждого дрона
+            if child.widget():
+                child.widget().deleteLater()
         self.drone_plots = QTabWidget()
+        self.drone_plots.setStyleSheet("""
+            QTabBar::tab { font-size: 14px; padding: 10px 20px; }
+        """)
         for i, drone in enumerate(self.fleet.drones):
-            plot = RealtimePlot(drone.get_realtime_data, drone_name=f"Дрон {i+1}")
-            self.drone_plots.addTab(plot, f"Дрон {i+1}")
-            
+            plot_widget = RealtimePlot(
+                drone.get_realtime_data, 
+                drone_name=f"Дрон {i+1} ({drone.drone_id})"
+            )
+            self.drone_plots.addTab(plot_widget, f"Дрон {i+1}")
+        
         self.plot_layout.addWidget(self.drone_plots)
         self.status_label.setText("Статус: ПОЛЁТ / ЛОГИРОВАНИЕ")
+        
+        QMessageBox.information(
+            self, 
+            "Запуск успешен", 
+            f"Подключено {len(self.fleet.drones)} дронов. Графики обновляются."
+        )
 
     def stop_fleet(self):
         self.is_running = False

@@ -4,30 +4,22 @@ import threading
 class RealtimeTelemetryProcessor:
     def __init__(self, buffer_size=300):
         self.buffer_size = buffer_size
-        # 🔥 FIX: Добавляем lock
         self._lock = threading.Lock()
         
-        # time
         self.t = deque(maxlen=buffer_size)
-        # position
         self.x = deque(maxlen=buffer_size)
         self.y = deque(maxlen=buffer_size)
         self.z = deque(maxlen=buffer_size)
-        # velocity
         self.vx = deque(maxlen=buffer_size)
         self.vy = deque(maxlen=buffer_size)
         self.vz = deque(maxlen=buffer_size)
-        # accel
         self.ax = deque(maxlen=buffer_size)
         self.ay = deque(maxlen=buffer_size)
         self.az = deque(maxlen=buffer_size)
-        # battery
         self.battery = deque(maxlen=buffer_size)
-        # callbacks
         self.callbacks = []
 
     def update(self, log: dict):
-        # 🔥 FIX: Защищаем запись lock'ом
         with self._lock:
             self.t.append(log.get("t"))
             self.x.append(log.get("x"))
@@ -41,7 +33,6 @@ class RealtimeTelemetryProcessor:
             self.az.append(log.get("az"))
             self.battery.append(log.get("battery"))
         
-        # notify GUI (без lock'а чтобы не блокировать)
         for cb in self.callbacks:
             try:
                 cb(log)
@@ -49,25 +40,12 @@ class RealtimeTelemetryProcessor:
                 print(f"[RealtimeTelemetryProcessor] callback error: {e}")
 
     def get_series(self):
-        # 🔥 FIX: Читаем с lock'ом
         with self._lock:
             return {
                 "t": list(self.t),
-                "position": {
-                    "x": list(self.x),
-                    "y": list(self.y),
-                    "z": list(self.z),
-                },
-                "velocity": {
-                    "x": list(self.vx),
-                    "y": list(self.vy),
-                    "z": list(self.vz),
-                },
-                "accel": {
-                    "x": list(self.ax),
-                    "y": list(self.ay),
-                    "z": list(self.az),
-                },
+                "position": {"x": list(self.x), "y": list(self.y), "z": list(self.z)},
+                "velocity": {"x": list(self.vx), "y": list(self.vy), "z": list(self.vz)},
+                "accel": {"x": list(self.ax), "y": list(self.ay), "z": list(self.az)},
                 "battery": list(self.battery),
             }
 

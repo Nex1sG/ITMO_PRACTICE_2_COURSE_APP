@@ -16,18 +16,23 @@ class FleetManager:
         self.duration = duration
         self.no_fly = no_fly
         self.drones = []
-
     def setup_fleet(self, n=None):
         if n is None:
             n = len(self.tcp_list)
-        #  Создаём ОДИН барьер на всех дронов
-        shared_barrier = Barrier(n)
+        shared_barrier = Barrier(n, timeout=5.0)
         
         for i in range(min(n, len(self.tcp_list))):
-            drone = DroneController(...)
+            drone = DroneController(
+                tcp=self.tcp_list[i],
+                alt=self.alt,
+                size=self.size,
+                reps=self.reps,
+                interval=self.interval,
+                no_fly=self.no_fly
+            )
             drone.drone_id = f"drone_{i+1}"
             drone.pattern = self.pattern
-            drone.barrier = shared_barrier  # 🔥 Передаём общий барьер
+            drone.barrier = shared_barrier
             self.drones.append(drone)
 
     def run(self):

@@ -24,9 +24,6 @@ class DroneController:
         self.experiment_id = None
         self.drone_id = None
         self.pattern = None
-
-        
-        # 🔥 FIX: Добавляем lock для потокобезопасности
         self.buffer_lock = threading.Lock()
         
         self.buffer_size = 200
@@ -66,10 +63,6 @@ class DroneController:
         except Exception:
             pass
         print(f"Connection closed for {self.drone_id}")
-
-    # ===================
-    # УПРАВЛЕНИЕ ДВИЖЕНИЕМ КОПТЕРА
-    # ===================
     def goto(self, x, y, z, yaw=0, timeout=15):
         self._require_connection()
         self.drone.go_to_local_point(x=x, y=y, z=z, yaw=yaw)
@@ -95,10 +88,7 @@ class DroneController:
         self.goto(0, 0, self.alt)
         time.sleep(0.5)
         print(f"[{self.drone_id}] Logging started")
-
-    # ===================
-    # ЛОГИРОВАНИЕ И ТЕЛЕМЕТРИЯ
-    # ===================
+        
     def start_logging(self):
         if self.is_logging.is_set():
             return
@@ -188,8 +178,6 @@ class DroneController:
                 log = self.make_log()
                 self.logger.write(log)
                 self.realtime.update(log)
-                
-                # 🔥 FIX: Защищаем буферы lock'ом
                 with self.buffer_lock:
                     self.time_buffer.append(log["t"])
                     self.x_buffer.append(log["x"])
@@ -204,7 +192,6 @@ class DroneController:
             time.sleep(self.interval)
 
     def get_realtime_data(self):
-        # 🔥 FIX: Читаем буферы с lock'ом
         with self.buffer_lock:
             return {
                 "t": list(self.time_buffer),
@@ -216,10 +203,6 @@ class DroneController:
                 "az": list(self.az_buffer),
                 "battery": list(self.battery_buffer)
             }
-
-    # ===================
-    # ПАТТЕРНЫ ПОЛЁТА
-    # ===================
     def hover(self):
         for _ in range(int(15 / self.interval)):
             self.goto(0, 0, self.alt)
@@ -309,10 +292,6 @@ class DroneController:
                     return
             if not self.goto(0, 0, self.alt):
                 return
-
-    # ===================
-    # УПРАВЛЕНИЕ ПАТТЕРНАМИ
-    # ===================
     def _run_pattern(self, fn):
         if self.no_fly:
             print(f"[{self.drone_id}] Simulation mode (no_fly=True)")
@@ -348,8 +327,6 @@ class DroneController:
         fn = patterns.get(pattern)
         if not fn:
             raise ValueError(f"Unknown pattern: {pattern}")
-        
-        # Ждем синхронизации если barrier установлен
         if self.barrier:
             self.barrier.wait()
         self._run_pattern(fn)
