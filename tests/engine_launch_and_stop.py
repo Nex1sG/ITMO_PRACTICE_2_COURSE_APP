@@ -26,7 +26,7 @@ def test_of_subscribe_function(*args):
     print("ENGINE_STARTED")
     print(args)
 
-pioneer = Pioneer(tcp="10.42.0.1:20556", wait_callback=True, safety_command=True)
+pioneer = Pioneer(tcp="192.168.0.101:20556", wait_callback=True, safety_command=True)
 pioneer.subscribe(Event.ENGINES_STARTED, test_of_subscribe_function)
 
 try:
