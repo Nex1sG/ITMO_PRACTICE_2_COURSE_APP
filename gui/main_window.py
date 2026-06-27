@@ -13,41 +13,30 @@ from config.config import load_drones, save_drones
 from backend.fleet_manager import FleetManager
 from gui.realtime_plot import RealtimePlot
 
-
 class PatternDelegate(QStyledItemDelegate):
-    """Выпадающий список для Pattern"""
     PATTERNS = ["hover", "line", "backforth", "square", "rectangle",
                 "triangle", "circle", "ellipse", "figure8"]
-
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
         combo.addItems(self.PATTERNS)
         return combo
-
     def setEditorData(self, editor, index):
         value = index.model().data(index, Qt.DisplayRole)
         editor.setCurrentText(value if value in self.PATTERNS else "hover")
-
     def setModelData(self, editor, model, index):
         model.setData(index, editor.currentText(), Qt.EditRole)
 
-
 class NoFlyDelegate(QStyledItemDelegate):
-    """Выпадающий список для No Fly (True/False)"""
     VALUES = ["True", "False"]
-
     def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
         combo.addItems(self.VALUES)
         return combo
-
     def setEditorData(self, editor, index):
         value = str(index.model().data(index, Qt.DisplayRole))
         editor.setCurrentText(value if value in self.VALUES else "False")
-
     def setModelData(self, editor, model, index):
         model.setData(index, editor.currentText(), Qt.EditRole)
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -59,26 +48,20 @@ class MainWindow(QMainWindow):
         self.fleet_thread = None
         self.is_running = False
         self.is_flying = False
-
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(10, 10, 10, 10)
-
         self.tabs = QTabWidget()
         self.tabs.setStyleSheet("QTabBar::tab { font-size: 14px; padding: 10px 20px; }")
         main_layout.addWidget(self.tabs)
-
         self.tab_settings = QWidget()
         self.setup_settings_tab()
         self.tabs.addTab(self.tab_settings, "1. Настройка дронов")
-
         self.tab_control = QWidget()
         self.setup_control_tab()
         self.tabs.addTab(self.tab_control, "2. Полёт и Графики")
-
         self.refresh_table()
-
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_label)
         self.status_timer.start(500)
@@ -106,7 +89,6 @@ class MainWindow(QMainWindow):
         self.table.setItemDelegateForColumn(4, PatternDelegate())
         self.table.setItemDelegateForColumn(9, NoFlyDelegate())
         layout.addWidget(self.table)
-
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
         self.btn_add = QPushButton("Добавить дрона")
@@ -127,10 +109,8 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(self.tab_control)
         layout.setSpacing(20)
         layout.setContentsMargins(30, 30, 30, 30)
-
         control_panel = QHBoxLayout()
         control_panel.setSpacing(15)
-
         self.btn_start = QPushButton("ЗАПУСТИТЬ ФЛОТ")
         self.btn_start.setStyleSheet("""
         QPushButton { background-color: #4CAF50; color: white; font-size: 18px; padding: 15px 30px; border-radius: 5px; font-weight: bold; }
@@ -138,7 +118,6 @@ class MainWindow(QMainWindow):
         QPushButton:disabled { background-color: #555753; color: #888888; }
         """)
         self.btn_start.clicked.connect(self.start_fleet)
-
         self.btn_stop = QPushButton("ОСТАНОВИТЬ")
         self.btn_stop.setStyleSheet("""
         QPushButton { background-color: #f44336; color: white; font-size: 18px; padding: 15px 30px; border-radius: 5px; font-weight: bold; }
@@ -147,20 +126,16 @@ class MainWindow(QMainWindow):
         """)
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop_fleet)
-
         self.status_label = QLabel("Статус: Готов к запуску")
         self.status_label.setStyleSheet("font-size: 18px; margin-left: 20px; font-weight: bold; color: #ffffff;")
-
         control_panel.addWidget(self.btn_start)
         control_panel.addWidget(self.btn_stop)
         control_panel.addWidget(self.status_label)
         layout.addLayout(control_panel)
-
         line = QWidget()
         line.setFixedHeight(2)
         line.setStyleSheet("background-color: #555753;")
         layout.addWidget(line)
-
         self.plot_container = QWidget()
         self.plot_container.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
         self.plot_layout = QVBoxLayout(self.plot_container)
@@ -169,7 +144,7 @@ class MainWindow(QMainWindow):
     def update_status_label(self):
         if self.fleet and hasattr(self.fleet, 'status'):
             self.status_label.setText(f"Статус: {self.fleet.status}")
-        elif self.is_running:
+        elif self.is_running and not self.is_flying:
             self.status_label.setText("Статус: Инициализация...")
 
     def refresh_table(self):
@@ -310,9 +285,7 @@ class MainWindow(QMainWindow):
 
     def delete_drone(self):
         row = self.table.currentRow()
-        if row < 0:
-            QMessageBox.warning(self, "Внимание", "Выберите дрона для удаления")
-            return
+        if row < 0: return
         drone_id = self.table.item(row, 0).text()
         if QMessageBox.question(self, "Подтверждение", f"Удалить {drone_id}?") == QMessageBox.Yes:
             drones = load_drones()
@@ -345,6 +318,7 @@ class MainWindow(QMainWindow):
             self.fleet_thread = threading.Thread(target=self.fleet.run, daemon=True)
             self.fleet_thread.start()
             threading.Thread(target=self.wait_for_connection_and_plot, daemon=True).start()
+            threading.Thread(target=self.monitor_thread_completion, daemon=True).start()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка запуска", str(e))
             self.is_running = False
@@ -362,7 +336,26 @@ class MainWindow(QMainWindow):
                     return
             time.sleep(0.2)
         if self.is_running:
-            print("Warning: Connection timeout")
+            print("Предупреждение: Таймаут подключения. Графики не созданы.")
+
+    def monitor_thread_completion(self):
+        """Следит за завершением потока и корректно сбрасывает UI"""
+        while True:
+            if not self.fleet_thread or not self.fleet_thread.is_alive():
+                # Поток завершился
+                QTimer.singleShot(0, self.reset_ui_after_finish)
+                break
+            time.sleep(0.5)
+
+    def reset_ui_after_finish(self):
+        """Сбрасывает UI после завершения миссии"""
+        print("[GUI] Миссия завершена, сбрасываю UI...")
+        self.is_running = False
+        self.is_flying = False
+        self.btn_start.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.status_label.setText("Статус: Миссия завершена")
+        QMessageBox.information(self, "Готово", "Все дроны завершили работу.")
 
     def create_all_plots(self):
         while self.plot_layout.count():
@@ -375,42 +368,25 @@ class MainWindow(QMainWindow):
                 plot_widget = RealtimePlot(drone.get_realtime_data, drone_name=f"Дрон {i+1}")
                 self.drone_plots.addTab(plot_widget, f"Дрон {i+1}")
         self.plot_layout.addWidget(self.drone_plots)
+        self.drone_plots.show()
+        self.plot_container.update()
         self.status_label.setText("Статус: ПОЛЁТ / ЛОГИРОВАНИЕ")
         QMessageBox.information(self, "Запуск", "Дроны подключены. Графики обновляются.")
 
     def stop_fleet(self):
-
+        """Останавливает флот"""
         if not self.is_running:
             return
         
         self.is_running = False
-        self.is_flying = False # Принудительно сбрасываем
+        self.is_flying = False
         self.status_label.setText("Статус: Остановка...")
         
         if self.fleet:
             self.fleet.stop_all()
-
-
         
+        # Сбрасываем кнопки СРАЗУ
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self.status_label.setText("Статус: Остановлено")
-        QMessageBox.information(self, "Готово", "Процесс остановлен.")
-
-    def monitor_thread_completion(self):
-        """Следит за завершением потока и корректно сбрасывает UI"""
-        while self.is_running:
-            if self.fleet_thread and not self.fleet_thread.is_alive():
-                # Поток завершён
-                QTimer.singleShot(0, self.reset_ui_after_finish)
-                break
-            time.sleep(0.5)
-
-    def reset_ui_after_finish(self):
-        """Сбрасывает UI после завершения миссии"""
-        self.is_running = False
-        self.is_flying = False
-        self.btn_start.setEnabled(True)
-        self.btn_stop.setEnabled(False)
-        self.status_label.setText("Статус: Миссия завершена")
-        print("[GUI] Миссия завершена, UI сброшен")
+        self.status_label.setText("Статус: Остановлено пользователем")
+        QMessageBox.information(self, "Готово", "Процесс остановлен. Дроны пытаются приземлиться.")

@@ -69,19 +69,21 @@ class FleetManager:
         self.status = "Миссия завершена"
         print("[Диспетчер] Все дроны завершили работу.")
 
-        def stop_all(self):
-            print("[Диспетчер] Экстренная остановка запрошена.")
-            self.status = "Остановка..."
-            for d in self.drones:
-                try:
-                    d.stop_logging()
-                    if d.drone:
-                        try:
-                            d.drone.land()
-                            time.sleep(3)
-                            d.drone.disarm()
-                        except:
-                            pass
-                except:
-                    pass
-            self.status = "Остановлено"
+    def stop_all(self):
+        print("[Диспетчер] Экстренная остановка запрошена.")
+        self.status = "Остановка..."
+        for d in self.drones:
+            try:
+
+                d.is_logging.clear()
+
+                if d.drone is not None:
+                    try:
+                        d.drone.land()
+                        time.sleep(2)
+                        d.drone.disarm()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        self.status = "Остановлено"

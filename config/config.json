@@ -4,11 +4,11 @@
             "id": "drone_1",
             "ip": "10.42.0.1",
             "port": 20556,
-            "alt": 2.0,
+            "alt": 1.0,
             "pattern": "hover",
             "size": 1.0,
             "reps": 1,
-            "duration": 15.0,
+            "duration": 10.0,
             "interval": 0.05,
             "no_fly": false
         }
