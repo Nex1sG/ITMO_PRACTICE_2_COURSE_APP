@@ -11,18 +11,6 @@
             "duration": 10.0,
             "interval": 0.05,
             "no_fly": false
-        },
-        {
-            "id": "drone_2",
-            "ip": "192.168.0.102",
-            "port": 20556,
-            "alt": 1.0,
-            "pattern": "hover",
-            "size": 1.0,
-            "reps": 1,
-            "duration": 10.0,
-            "interval": 0.05,
-            "no_fly": false
         }
     ]
 }
