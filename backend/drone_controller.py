@@ -1,6 +1,7 @@
 import time
 import math
 import threading
+import random
 from collections import deque
 from pioneer_sdk2 import Pioneer
 from threading import Barrier, BrokenBarrierError
@@ -110,23 +111,29 @@ class DroneController:
         except Exception as e:
             print(f"[{self.drone_id}] Не удалось проверить батарею: {e}")
 
-        initial_wait = 2.0 + (hash(self.drone_id) % 30) / 10.0
-        print(f"[{self.drone_id}] Ожидание инициализации {initial_wait:.1f} сек...")
-        time.sleep(initial_wait)
+        base_wait = 3.0
+        random_wait = random.uniform(0, 5.0)
+        total_wait = base_wait + random_wait
+        
+        print(f"[{self.drone_id}] Ожидание инициализации {total_wait:.1f} сек...")
+        time.sleep(total_wait)
 
         print(f"[{self.drone_id}] Арминг моторов...")
-        max_attempts = 5
+        max_attempts = 8
         for attempt in range(max_attempts):
             try:
                 if self.drone.arm():
                     print(f"[{self.drone_id}] Арминг успешен (попытка {attempt + 1}).")
+                    time.sleep(1.0)
                     break
                 else:
                     print(f"[{self.drone_id}] Попытка {attempt + 1} не удалась. Ждём...")
-                    time.sleep(3.0)
+                    wait_time = 4.0 + random.uniform(0, 2.0)
+                    time.sleep(wait_time)
             except Exception as e:
                 print(f"[{self.drone_id}] Ошибка арминга (попытка {attempt + 1}): {e}")
-                time.sleep(3.0)
+                wait_time = 4.0 + random.uniform(0, 2.0)
+                time.sleep(wait_time)
         else:
             print(f"[{self.drone_id}] АРМИНГ НЕ УДАЛСЯ после {max_attempts} попыток.")
             print(f"[{self.drone_id}] Проверьте:")

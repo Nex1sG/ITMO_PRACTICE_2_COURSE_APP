@@ -1,6 +1,6 @@
 import numpy as np
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from PySide6.QtCore import QTimer
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -17,21 +17,7 @@ class RealtimePlot(QWidget):
         self.title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(self.title_label)
         
-        checkbox_layout = QHBoxLayout()
-        self.cb_xyz = QCheckBox("Позиция (X/Y/Z)")
-        self.cb_accel = QCheckBox("Ускорение (X/Y/Z)")
-        self.cb_battery = QCheckBox("Аккумулятор")
-        
-        self.cb_xyz.setChecked(True)
-        self.cb_accel.setChecked(False)
-        self.cb_battery.setChecked(True)
-        
-        checkbox_layout.addWidget(self.cb_xyz)
-        checkbox_layout.addWidget(self.cb_accel)
-        checkbox_layout.addWidget(self.cb_battery)
-        layout.addLayout(checkbox_layout)
-        
-        self.figure = Figure(figsize=(8, 6))
+        self.figure = Figure(figsize=(10, 8))
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
         
@@ -49,11 +35,11 @@ class RealtimePlot(QWidget):
             ("az", "AZ", "brown", self.ax_accel, "--"),
             ("battery", "Напряжение", "darkgreen", self.ax_battery, "-")
         ]:
-            line, = ax.plot([], [], label=label, color=color, linestyle=ls, linewidth=1.5 if ax == self.ax_position else 1)
+            line, = ax.plot([], [], label=label, color=color, linestyle=ls, linewidth=2 if ax == self.ax_position else 1.5)
             self.lines[key] = line
             
         self._setup_axes()
-        self.figure.tight_layout()
+        self.figure.tight_layout(pad=3.0)
         self.canvas.draw()
         
         self.timer = QTimer(self)
@@ -62,15 +48,21 @@ class RealtimePlot(QWidget):
 
     def _setup_axes(self):
         for ax in [self.ax_position, self.ax_accel, self.ax_battery]:
-            ax.grid(True, alpha=0.3)
-            ax.set_xlabel("Время (с)")
+            ax.grid(True, alpha=0.3, linewidth=1.5)
+            ax.set_xlabel("Время (с)", fontsize=12)
+            ax.tick_params(labelsize=10)
             
-        self.ax_position.set_ylabel("Позиция (м)")
-        self.ax_position.set_title("Пространственное положение")
-        self.ax_accel.set_ylabel("Ускорение (м/с²)")
-        self.ax_accel.set_title("Линейное ускорение")
-        self.ax_battery.set_ylabel("Напряжение (В)")
-        self.ax_battery.set_title("Состояние аккумулятора")
+        self.ax_position.set_ylabel("Позиция (м)", fontsize=12)
+        self.ax_position.set_title("Пространственное положение", fontsize=14, fontweight='bold', pad=15)
+        self.ax_position.legend(loc='upper right', fontsize=11)
+        
+        self.ax_accel.set_ylabel("Ускорение (м/с²)", fontsize=12)
+        self.ax_accel.set_title("Линейное ускорение", fontsize=14, fontweight='bold', pad=15)
+        self.ax_accel.legend(loc='upper right', fontsize=11)
+        
+        self.ax_battery.set_ylabel("Напряжение (В)", fontsize=12)
+        self.ax_battery.set_title("Состояние аккумулятора", fontsize=14, fontweight='bold', pad=15)
+        self.ax_battery.legend(loc='upper right', fontsize=11)
 
     def refresh_plot(self):
         try:
@@ -84,57 +76,46 @@ class RealtimePlot(QWidget):
                 return
 
             t = [t_raw[i] for i in valid_indices]
+            if len(t) < 2:
+                return
+                
             min_t, max_t = t[0], t[-1]
+            time_range = max_t - min_t
+            if time_range < 1:
+                max_t = min_t + 1
 
-            if self.cb_xyz.isChecked():
-                for key in ["x", "y", "z"]:
-                    raw_vals = data.get(key, [])
-                    vals = [raw_vals[i] for i in valid_indices if i < len(raw_vals) and raw_vals[i] is not None]
-                    if len(vals) == len(t):
-                        self.lines[key].set_data(t, vals)
-                        self.lines[key].set_visible(True)
-                    else:
-                        self.lines[key].set_visible(False)
-            else:
-                for key in ["x", "y", "z"]:
-                    self.lines[key].set_visible(False)
-
-            if self.cb_accel.isChecked():
-                for key in ["ax", "ay", "az"]:
-                    raw_vals = data.get(key, [])
-                    vals = [raw_vals[i] for i in valid_indices if i < len(raw_vals) and raw_vals[i] is not None]
-                    if len(vals) == len(t):
-                        self.lines[key].set_data(t, vals)
-                        self.lines[key].set_visible(True)
-                    else:
-                        self.lines[key].set_visible(False)
-            else:
-                for key in ["ax", "ay", "az"]:
-                    self.lines[key].set_visible(False)
-
-            if self.cb_battery.isChecked():
-                raw_vals = data.get("battery", [])
+            for key in ["x", "y", "z"]:
+                raw_vals = data.get(key, [])
                 vals = [raw_vals[i] for i in valid_indices if i < len(raw_vals) and raw_vals[i] is not None]
                 if len(vals) == len(t):
-                    self.lines["battery"].set_data(t, vals)
-                    self.lines["battery"].set_visible(True)
-                    if hasattr(self.ax_battery, "_min_line"):
-                        self.ax_battery._min_line.set_data([min_t, max_t], [10.5, 10.5])
-                    else:
-                        self.ax_battery._min_line, = self.ax_battery.plot([min_t, max_t], [10.5, 10.5], color='red', linestyle=':', alpha=0.5, label='Мин. 10.5В')
+                    self.lines[key].set_data(t, vals)
+                    self.lines[key].set_visible(True)
                 else:
-                    self.lines["battery"].set_visible(False)
+                    self.lines[key].set_visible(False)
+
+            for key in ["ax", "ay", "az"]:
+                raw_vals = data.get(key, [])
+                vals = [raw_vals[i] for i in valid_indices if i < len(raw_vals) and raw_vals[i] is not None]
+                if len(vals) == len(t):
+                    self.lines[key].set_data(t, vals)
+                    self.lines[key].set_visible(True)
+                else:
+                    self.lines[key].set_visible(False)
+
+            raw_vals = data.get("battery", [])
+            vals = [raw_vals[i] for i in valid_indices if i < len(raw_vals) and raw_vals[i] is not None]
+            if len(vals) == len(t):
+                self.lines["battery"].set_data(t, vals)
+                self.lines["battery"].set_visible(True)
+                if hasattr(self.ax_battery, "_min_line"):
+                    self.ax_battery._min_line.set_data([min_t, max_t], [10.5, 10.5])
+                else:
+                    self.ax_battery._min_line, = self.ax_battery.plot([min_t, max_t], [10.5, 10.5], color='red', linestyle=':', alpha=0.5, label='Мин. 10.5В')
             else:
                 self.lines["battery"].set_visible(False)
-                if hasattr(self.ax_battery, "_min_line"):
-                    self.ax_battery._min_line.set_visible(False)
 
             for ax in [self.ax_position, self.ax_accel, self.ax_battery]:
                 ax.set_xlim(min_t - 0.5, max_t + 0.5)
-
-            self.ax_position.legend(loc='upper right', fontsize=8)
-            self.ax_accel.legend(loc='upper right', fontsize=8)
-            self.ax_battery.legend(loc='upper right', fontsize=8)
 
             self.canvas.draw_idle()
         except Exception as e:

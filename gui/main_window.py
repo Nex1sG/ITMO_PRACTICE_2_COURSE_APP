@@ -5,7 +5,7 @@ import ipaddress
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QTabWidget,
-    QInputDialog, QMessageBox, QComboBox, QStyledItemDelegate
+    QInputDialog, QMessageBox, QComboBox, QStyledItemDelegate, QScrollArea
 )
 from PySide6.QtCore import Qt, QTimer
 from config.config import load_drones, save_drones
@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Система контроля дронов")
-        self.resize(1500, 900)
+        self.resize(1600, 1000)
         self.setStyleSheet(self.get_global_style())
         
         self.fleet = None
@@ -55,6 +55,7 @@ class MainWindow(QMainWindow):
         self.is_running = False
         self.is_flying = False
         self.plot_check_timer = None
+        self.all_plots_timer = None
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -72,6 +73,10 @@ class MainWindow(QMainWindow):
         self.tab_control = QWidget()
         self.setup_control_tab()
         self.tabs.addTab(self.tab_control, "2. Полёт и Графики")
+        
+        self.tab_all_plots = QWidget()
+        self.setup_all_plots_tab()
+        self.tabs.addTab(self.tab_all_plots, "3. Все графики")
 
         self.refresh_table()
 
@@ -172,6 +177,26 @@ class MainWindow(QMainWindow):
         self.plot_layout = QVBoxLayout(self.plot_container)
         
         layout.addWidget(self.plot_container)
+
+    def setup_all_plots_tab(self):
+        layout = QVBoxLayout(self.tab_all_plots)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        self.all_plots_scroll = QScrollArea()
+        self.all_plots_scroll.setWidgetResizable(True)
+        self.all_plots_scroll.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
+        
+        self.all_plots_content = QWidget()
+        self.all_plots_layout = QVBoxLayout(self.all_plots_content)
+        self.all_plots_layout.setSpacing(20)
+        
+        self.all_plots_scroll.setWidget(self.all_plots_content)
+        layout.addWidget(self.all_plots_scroll)
+        
+        self.info_label = QLabel("Запустите флот для отображения графиков всех дронов")
+        self.info_label.setStyleSheet("font-size: 16px; color: #888888; padding: 20px;")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.all_plots_layout.addWidget(self.info_label)
 
     def update_status_label(self):
         if self.fleet and hasattr(self.fleet, 'status'):
@@ -346,6 +371,10 @@ class MainWindow(QMainWindow):
             self.plot_check_timer = QTimer(self)
             self.plot_check_timer.timeout.connect(self.check_and_create_plots)
             self.plot_check_timer.start(200)
+            
+            self.all_plots_timer = QTimer(self)
+            self.all_plots_timer.timeout.connect(self.check_and_update_all_plots)
+            self.all_plots_timer.start(500)
 
             threading.Thread(target=self.monitor_thread_completion, daemon=True).start()
             
@@ -387,6 +416,24 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Статус: ПОЛЁТ / ЛОГИРОВАНИЕ")
         QMessageBox.information(self, "Запуск", "Дроны подключены. Графики обновляются.")
 
+    def check_and_update_all_plots(self):
+        if not self.is_running or not self.is_flying:
+            return
+            
+        if self.fleet and self.fleet.drones:
+            self.update_all_plots_tab()
+
+    def update_all_plots_tab(self):
+        while self.all_plots_layout.count():
+            child = self.all_plots_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        
+        for i, drone in enumerate(self.fleet.drones):
+            if drone.drone is not None:
+                plot_widget = RealtimePlot(drone.get_realtime_data, drone_name=f"Дрон {i+1}")
+                self.all_plots_layout.addWidget(plot_widget)
+
     def stop_fleet(self):
         self.is_running = False
         self.is_flying = False
@@ -394,6 +441,9 @@ class MainWindow(QMainWindow):
         
         if self.plot_check_timer:
             self.plot_check_timer.stop()
+            
+        if self.all_plots_timer:
+            self.all_plots_timer.stop()
 
         if self.fleet:
             self.fleet.stop_all()
@@ -402,7 +452,7 @@ class MainWindow(QMainWindow):
         self.btn_stop.setEnabled(False)
         self.status_label.setText("Статус: Остановлено")
         
-        QMessageBox.information(self, "Готово", "Процесс оста   новлен. Дроны пытаются приземлиться.")
+        QMessageBox.information(self, "Готово", "Процесс остановлен. Дроны пытаются приземлиться.")
 
     def monitor_thread_completion(self):
         while self.is_running:
