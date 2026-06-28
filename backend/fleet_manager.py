@@ -43,8 +43,11 @@ class FleetManager:
         
         for d in self.drones:
             try:
+                print(f"[Диспетчер] Подключение {d.drone_id}...")
                 d.connect()
                 connected_count += 1
+                # 🔥 ВАЖНО: Даём дрону время на инициализацию
+                time.sleep(2)
             except Exception as e:
                 print(f"[Диспетчер] Не удалось подключить {d.drone_id}: {e}")
         
@@ -60,6 +63,8 @@ class FleetManager:
             t = threading.Thread(target=d.execute_pattern, args=(self.pattern,), daemon=True)
             t.start()
             threads.append(t)
+            # 🔥 Небольшая задержка между запусками потоков
+            time.sleep(0.5)
         
         self.status = "Полёт"
         

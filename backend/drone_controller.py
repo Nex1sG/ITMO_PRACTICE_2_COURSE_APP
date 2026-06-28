@@ -87,10 +87,44 @@ class DroneController:
 
     def takeoff_and_hover(self):
         self._require_connection()
+        print(f"[{self.drone_id}] Проверка состояния перед армингом...")
+        
+        # Проверяем батарею
+        try:
+            battery = self.drone.get_battery_status()
+            if battery:
+                print(f"[{self.drone_id}] Напряжение батареи: {battery[0]:.2f}V")
+                if battery[0] < 10.5:
+                    print(f"[{self.drone_id}] ВНИМАНИЕ: Низкий заряд батареи!")
+        except Exception as e:
+            print(f"[{self.drone_id}] Не удалось проверить батарею: {e}")
+        
+        # Небольшая задержка перед армингом
+        time.sleep(1)
+        
         print(f"[{self.drone_id}] Арминг моторов...")
-        if not self.drone.arm():
-            print(f"[{self.drone_id}] АРМИНГ НЕ УДАЛСЯ.")
-            raise RuntimeError("Arm failed")
+        
+        # Пробуем заармиться с повторами
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                if self.drone.arm():
+                    print(f"[{self.drone_id}] Арминг успешен (попытка {attempt + 1}).")
+                    break
+                else:
+                    print(f"[{self.drone_id}] Попытка {attempt + 1} не удалась. Ждём...")
+                    time.sleep(2)
+            except Exception as e:
+                print(f"[{self.drone_id}] Ошибка арминга (попытка {attempt + 1}): {e}")
+                time.sleep(2)
+        else:
+            print(f"[{self.drone_id}] АРМИНГ НЕ УДАЛСЯ после {max_attempts} попыток.")
+            print(f"[{self.drone_id}] Проверьте:")
+            print(f"[{self.drone_id}] - Заряд батареи")
+            print(f"[{self.drone_id}] - Калибровку дронов")
+            print(f"[{self.drone_id}] - Наличие GPS сигнала (если требуется)")
+            raise RuntimeError("Arm failed after multiple attempts")
+        
         print(f"[{self.drone_id}] Арминг выполнен. Взлёт...")
         self.drone.takeoff()
         time.sleep(5)
