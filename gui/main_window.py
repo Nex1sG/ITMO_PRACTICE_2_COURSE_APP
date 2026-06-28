@@ -5,7 +5,7 @@ import ipaddress
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QTabWidget,
-    QInputDialog, QMessageBox, QComboBox, QStyledItemDelegate, QScrollArea
+    QInputDialog, QMessageBox, QComboBox, QStyledItemDelegate
 )
 from PySide6.QtCore import Qt, QTimer
 from config.config import load_drones, save_drones
@@ -55,7 +55,6 @@ class MainWindow(QMainWindow):
         self.is_running = False
         self.is_flying = False
         self.plot_check_timer = None
-        self.all_plots_timer = None
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -73,10 +72,6 @@ class MainWindow(QMainWindow):
         self.tab_control = QWidget()
         self.setup_control_tab()
         self.tabs.addTab(self.tab_control, "2. Полёт и Графики")
-        
-        self.tab_all_plots = QWidget()
-        self.setup_all_plots_tab()
-        self.tabs.addTab(self.tab_all_plots, "3. Все графики")
 
         self.refresh_table()
 
@@ -135,15 +130,35 @@ class MainWindow(QMainWindow):
 
     def setup_control_tab(self):
         layout = QVBoxLayout(self.tab_control)
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        control_panel = QHBoxLayout()
-        control_panel.setSpacing(15)
+        self.plot_container = QWidget()
+        self.plot_container.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
+        self.plot_layout = QVBoxLayout(self.plot_container)
+        self.plot_layout.setContentsMargins(5, 5, 5, 5)
+        
+        layout.addWidget(self.plot_container, stretch=1)
+
+        line = QWidget()
+        line.setFixedHeight(2)
+        line.setStyleSheet("background-color: #555753;")
+        layout.addWidget(line)
+
+        control_panel = QVBoxLayout()
+        control_panel.setSpacing(10)
+
+        self.status_label = QLabel("Статус: Готов к запуску")
+        self.status_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff; padding: 5px;")
+        self.status_label.setAlignment(Qt.AlignCenter)
+        control_panel.addWidget(self.status_label)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(20)
 
         self.btn_start = QPushButton("ЗАПУСТИТЬ ФЛОТ")
         self.btn_start.setStyleSheet("""
-            QPushButton { background-color: #4CAF50; color: white; font-size: 18px; padding: 15px 30px; border-radius: 5px; font-weight: bold; }
+            QPushButton { background-color: #4CAF50; color: white; font-size: 16px; padding: 12px 25px; border-radius: 5px; font-weight: bold; }
             QPushButton:hover { background-color: #45a049; }
             QPushButton:disabled { background-color: #555753; color: #888888; }
         """)
@@ -151,52 +166,18 @@ class MainWindow(QMainWindow):
 
         self.btn_stop = QPushButton("ОСТАНОВИТЬ")
         self.btn_stop.setStyleSheet("""
-            QPushButton { background-color: #f44336; color: white; font-size: 18px; padding: 15px 30px; border-radius: 5px; font-weight: bold; }
+            QPushButton { background-color: #f44336; color: white; font-size: 16px; padding: 12px 25px; border-radius: 5px; font-weight: bold; }
             QPushButton:hover { background-color: #da190b; }
             QPushButton:disabled { background-color: #555753; color: #888888; }
         """)
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop_fleet)
 
-        self.status_label = QLabel("Статус: Готов к запуску")
-        self.status_label.setStyleSheet("font-size: 18px; margin-left: 20px; font-weight: bold; color: #ffffff;")
-
-        control_panel.addWidget(self.btn_start)
-        control_panel.addWidget(self.btn_stop)
-        control_panel.addWidget(self.status_label)
+        btn_layout.addWidget(self.btn_start)
+        btn_layout.addWidget(self.btn_stop)
         
+        control_panel.addLayout(btn_layout)
         layout.addLayout(control_panel)
-
-        line = QWidget()
-        line.setFixedHeight(2)
-        line.setStyleSheet("background-color: #555753;")
-        layout.addWidget(line)
-
-        self.plot_container = QWidget()
-        self.plot_container.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
-        self.plot_layout = QVBoxLayout(self.plot_container)
-        
-        layout.addWidget(self.plot_container)
-
-    def setup_all_plots_tab(self):
-        layout = QVBoxLayout(self.tab_all_plots)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
-        self.all_plots_scroll = QScrollArea()
-        self.all_plots_scroll.setWidgetResizable(True)
-        self.all_plots_scroll.setStyleSheet("background-color: #383c3e; border-radius: 5px;")
-        
-        self.all_plots_content = QWidget()
-        self.all_plots_layout = QVBoxLayout(self.all_plots_content)
-        self.all_plots_layout.setSpacing(20)
-        
-        self.all_plots_scroll.setWidget(self.all_plots_content)
-        layout.addWidget(self.all_plots_scroll)
-        
-        self.info_label = QLabel("Запустите флот для отображения графиков всех дронов")
-        self.info_label.setStyleSheet("font-size: 16px; color: #888888; padding: 20px;")
-        self.info_label.setAlignment(Qt.AlignCenter)
-        self.all_plots_layout.addWidget(self.info_label)
 
     def update_status_label(self):
         if self.fleet and hasattr(self.fleet, 'status'):
@@ -323,10 +304,6 @@ class MainWindow(QMainWindow):
 
         save_drones(drones)
         print(f"Сохранено {len(drones)} дронов в config.json")
-        
-        original_status = self.status_label.text()
-        self.status_label.setText("Сохранено!")
-        QTimer.singleShot(1000, lambda: self.status_label.setText(original_status))
 
     def delete_drone(self):
         row = self.table.currentRow()
@@ -371,10 +348,6 @@ class MainWindow(QMainWindow):
             self.plot_check_timer = QTimer(self)
             self.plot_check_timer.timeout.connect(self.check_and_create_plots)
             self.plot_check_timer.start(200)
-            
-            self.all_plots_timer = QTimer(self)
-            self.all_plots_timer.timeout.connect(self.check_and_update_all_plots)
-            self.all_plots_timer.start(500)
 
             threading.Thread(target=self.monitor_thread_completion, daemon=True).start()
             
@@ -416,24 +389,6 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Статус: ПОЛЁТ / ЛОГИРОВАНИЕ")
         QMessageBox.information(self, "Запуск", "Дроны подключены. Графики обновляются.")
 
-    def check_and_update_all_plots(self):
-        if not self.is_running or not self.is_flying:
-            return
-            
-        if self.fleet and self.fleet.drones:
-            self.update_all_plots_tab()
-
-    def update_all_plots_tab(self):
-        while self.all_plots_layout.count():
-            child = self.all_plots_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-        
-        for i, drone in enumerate(self.fleet.drones):
-            if drone.drone is not None:
-                plot_widget = RealtimePlot(drone.get_realtime_data, drone_name=f"Дрон {i+1}")
-                self.all_plots_layout.addWidget(plot_widget)
-
     def stop_fleet(self):
         self.is_running = False
         self.is_flying = False
@@ -441,9 +396,6 @@ class MainWindow(QMainWindow):
         
         if self.plot_check_timer:
             self.plot_check_timer.stop()
-            
-        if self.all_plots_timer:
-            self.all_plots_timer.stop()
 
         if self.fleet:
             self.fleet.stop_all()

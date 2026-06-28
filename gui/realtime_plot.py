@@ -1,4 +1,3 @@
-import numpy as np
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -9,15 +8,15 @@ class RealtimePlot(QWidget):
         super().__init__()
         self.data_source = data_source
         self.drone_name = drone_name
-        self.setWindowTitle(f"Телеметрия: {drone_name}")
         
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         
         self.title_label = QLabel(f"Телеметрия: {drone_name}")
-        self.title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        self.title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff; padding: 5px;")
         layout.addWidget(self.title_label)
         
-        self.figure = Figure(figsize=(10, 8))
+        self.figure = Figure(figsize=(12, 9), dpi=100)
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
         
@@ -39,7 +38,7 @@ class RealtimePlot(QWidget):
             self.lines[key] = line
             
         self._setup_axes()
-        self.figure.tight_layout(pad=3.0)
+        self.figure.tight_layout(pad=2.0)
         self.canvas.draw()
         
         self.timer = QTimer(self)
@@ -48,21 +47,21 @@ class RealtimePlot(QWidget):
 
     def _setup_axes(self):
         for ax in [self.ax_position, self.ax_accel, self.ax_battery]:
-            ax.grid(True, alpha=0.3, linewidth=1.5)
-            ax.set_xlabel("Время (с)", fontsize=12)
-            ax.tick_params(labelsize=10)
+            ax.grid(True, alpha=0.3, linewidth=1)
+            ax.set_xlabel("Время (с)", fontsize=11)
+            ax.tick_params(labelsize=9)
             
-        self.ax_position.set_ylabel("Позиция (м)", fontsize=12)
-        self.ax_position.set_title("Пространственное положение", fontsize=14, fontweight='bold', pad=15)
-        self.ax_position.legend(loc='upper right', fontsize=11)
+        self.ax_position.set_ylabel("Позиция (м)", fontsize=11)
+        self.ax_position.set_title("Пространственное положение", fontsize=13, fontweight='bold', pad=10)
+        self.ax_position.legend(loc='upper right', fontsize=9)
         
-        self.ax_accel.set_ylabel("Ускорение (м/с²)", fontsize=12)
-        self.ax_accel.set_title("Линейное ускорение", fontsize=14, fontweight='bold', pad=15)
-        self.ax_accel.legend(loc='upper right', fontsize=11)
+        self.ax_accel.set_ylabel("Ускорение (м/с²)", fontsize=11)
+        self.ax_accel.set_title("Линейное ускорение", fontsize=13, fontweight='bold', pad=10)
+        self.ax_accel.legend(loc='upper right', fontsize=9)
         
-        self.ax_battery.set_ylabel("Напряжение (В)", fontsize=12)
-        self.ax_battery.set_title("Состояние аккумулятора", fontsize=14, fontweight='bold', pad=15)
-        self.ax_battery.legend(loc='upper right', fontsize=11)
+        self.ax_battery.set_ylabel("Напряжение (В)", fontsize=11)
+        self.ax_battery.set_title("Состояние аккумулятора", fontsize=13, fontweight='bold', pad=10)
+        self.ax_battery.legend(loc='upper right', fontsize=9)
 
     def refresh_plot(self):
         try:
