@@ -3,3 +3,11 @@ backend/__pycache__/
 utils/__pycache__/
 config/__pycache__/
 gui/__pycache__/
+.idea/
+.venv/
+python312/
+combine.py
+combined_all.txt
+build/
+dist/
+main.spec
