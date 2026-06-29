@@ -332,6 +332,12 @@ class MainWindow(QMainWindow):
         if self.is_running: return
         
         self.save_to_json()
+
+        print(f"[GUI] Запуск флота...")
+        print(f"[GUI] Загружено дронов: {len(drones_data)}")
+        for d in drones_data:
+            print(f"[GUI]   - {d['id']}: {d['ip']}:{d['port']}, pattern={d['pattern']}, no_fly={d['no_fly']}")
+
         drones_data = load_drones()
         if not drones_data:
             QMessageBox.critical(self, "Ошибка", "Список дронов пуст!")
@@ -385,6 +391,10 @@ class MainWindow(QMainWindow):
                 self.is_flying = True
 
     def create_all_plots(self):
+        print(f"[GUI] Создание графиков для {len(self.fleet.drones)} дронов")
+        for i, drone in enumerate(self.fleet.drones):
+            print(f"[GUI]   Дрон {i+1}: connected={drone.drone is not None}")
+
         while self.plot_layout.count():
             child = self.plot_layout.takeAt(0)
             if child.widget(): 
@@ -404,6 +414,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "Запуск", "Дроны подключены. Графики обновляются.")
 
     def stop_fleet(self):
+        print(f"[GUI] Остановка флота запрошена пользователем")
         self.is_running = False
         self.is_flying = False
         self.status_label.setText("Статус: Остановка...")

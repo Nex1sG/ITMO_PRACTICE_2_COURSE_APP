@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtCore import QTimer, Qt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -10,14 +10,10 @@ class Trajectory3D(QWidget):
         self.fleet = fleet
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(10, 40, 10, 10)
+        layout.setSpacing(10)
         
-        title = QLabel("3D Траектории дронов")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff; padding: 10px;")
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
-        
-        self.figure = Figure(figsize=(14, 10), dpi=100)
+        self.figure = Figure(figsize=(12, 8), dpi=100)
         self.canvas = FigureCanvas(self.figure)
         layout.addWidget(self.canvas)
         
@@ -27,7 +23,7 @@ class Trajectory3D(QWidget):
         self.colors = ['blue', 'red', 'green', 'orange', 'purple', 'cyan', 'magenta', 'yellow']
         
         self._setup_axes()
-        self.figure.tight_layout()
+        self.figure.tight_layout(pad=3.0)
         self.canvas.draw()
         
         self.timer = QTimer(self)
@@ -35,10 +31,10 @@ class Trajectory3D(QWidget):
         self.timer.start(200)
 
     def _setup_axes(self):
-        self.ax.set_xlabel('X (м)', fontsize=12, labelpad=10)
-        self.ax.set_ylabel('Y (м)', fontsize=12, labelpad=10)
-        self.ax.set_zlabel('Z (м)', fontsize=12, labelpad=10)
-        self.ax.set_title('Траектории полёта дронов', fontsize=14, fontweight='bold', pad=20)
+        self.ax.set_xlabel('X (м)', fontsize=10, labelpad=10)
+        self.ax.set_ylabel('Y (м)', fontsize=10, labelpad=10)
+        self.ax.set_zlabel('Z (м)', fontsize=10, labelpad=10)
+        self.ax.set_title('Траектории полёта дронов', fontsize=12, fontweight='bold', pad=20)
         self.ax.grid(True, alpha=0.3)
 
     def update_trajectory(self):
@@ -127,7 +123,7 @@ class Trajectory3D(QWidget):
                     self.ax.set_zlim(z_center - max_range, z_center + max_range)
             
             if self.lines:
-                self.ax.legend(loc='upper left', fontsize=10)
+                self.ax.legend(loc='upper left', fontsize=9)
             
             self.canvas.draw_idle()
         except Exception as e:

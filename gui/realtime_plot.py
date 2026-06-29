@@ -66,6 +66,14 @@ class RealtimePlot(QWidget):
     def refresh_plot(self):
         try:
             data = self.data_source()
+            
+            if data and data.get('t'):
+                valid_x = len([v for v in data.get('x', []) if v is not None])
+                valid_y = len([v for v in data.get('y', []) if v is not None])
+                valid_z = len([v for v in data.get('z', []) if v is not None])
+                if len(data['t']) > 0 and len(data['t']) % 50 == 0:
+                    print(f"[PLOT {self.drone_name}] t={len(data['t'])}, x_valid={valid_x}, y_valid={valid_y}, z_valid={valid_z}")
+
             if not data or not data.get("t"):
                 return
 

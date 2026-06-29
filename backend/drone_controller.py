@@ -11,6 +11,7 @@ from backend.realtime_processor import RealtimeTelemetryProcessor
 class DroneController:
     def __init__(self, tcp: str, alt: float = 1.0, size: float = 1.0,
                  reps: int = 1, interval: float = 0.05, no_fly: bool = False):
+        print(f"[DEBUG] Создание DroneController: tcp={tcp}, alt={alt}, no_fly={no_fly}")
         self.tcp = tcp
         self.alt = alt
         self.size = size
@@ -42,6 +43,8 @@ class DroneController:
         self.battery_buffer = deque(maxlen=self.buffer_size)
         
         self.barrier = None
+        self._gyro_printed = False
+        print(f"[DEBUG] DroneController инициализирован")
 
     def _require_connection(self):
         if self.drone is None:
@@ -51,12 +54,14 @@ class DroneController:
         print(f"[{self.drone_id}] Подключение к {self.tcp}...")
         try:
             self.drone = Pioneer(tcp=self.tcp, logger=True)
+            print(f"[{self.drone_id}] Pioneer объект создан: {self.drone}")
             print(f"[{self.drone_id}] Успешно подключён.")
             
             if self.drone_id is None:
                 self.drone_id = self.tcp.replace(":", "_")
                 
             self.logger = DataLogger(filename=f"logs_{self.drone_id}.csv")
+            print(f"[{self.drone_id}] Логгер создан: logs_{self.drone_id}.csv")
             return True
         except Exception as e:
             print(f"[{self.drone_id}] Ошибка подключения: {e}")
@@ -69,12 +74,14 @@ class DroneController:
         print(f"[{self.drone_id}] Отключение...")
         try:
             self.drone.close_connection()
+            print(f"[{self.drone_id}] Соединение закрыто")
         except Exception as e:
             print(f"[{self.drone_id}] Ошибка отключения: {e}")
             
         try:
             if self.logger:
                 self.logger.close()
+                print(f"[{self.drone_id}] Логгер закрыт")
         except Exception:
             pass
             
@@ -122,6 +129,7 @@ class DroneController:
         max_attempts = 8
         for attempt in range(max_attempts):
             try:
+                print(f"[{self.drone_id}] Попытка арминга {attempt + 1}/{max_attempts}")
                 if self.drone.arm():
                     print(f"[{self.drone_id}] Арминг успешен (попытка {attempt + 1}).")
                     time.sleep(1.0)
@@ -153,6 +161,7 @@ class DroneController:
 
     def start_logging(self):
         if self.is_logging.is_set():
+            print(f"[{self.drone_id}] Логирование уже запущено")
             return
             
         if self.drone is None:
@@ -160,6 +169,7 @@ class DroneController:
         if self.logger is None:
             raise RuntimeError("Логгер не инициализирован")
 
+        print(f"[{self.drone_id}] Запуск потока логирования...")
         self.experiment_start_time = time.time()
         self.is_logging.set()
         self.log_thread = threading.Thread(target=self.monitor, daemon=True)
@@ -167,6 +177,7 @@ class DroneController:
         print(f"[{self.drone_id}] Поток логирования запущен.")
 
     def stop_logging(self):
+        print(f"[{self.drone_id}] Остановка логирования...")
         self.is_logging.clear()
         if self.log_thread and self.log_thread.is_alive():
             self.log_thread.join(timeout=2)
@@ -179,29 +190,36 @@ class DroneController:
                 return call()
             except:
                 return None
-
+        
         pos = safe(self.drone.get_local_position_lps)
         vel = safe(self.drone.get_local_velocity_lps)
         att = safe(self.drone.get_orientation)
         accel = safe(self.drone.get_accel)
         gyro = safe(self.drone.get_gyro)
-        print(f"[DEBUG] Гироскоп: {gyro}")
         mag = safe(self.drone.get_mag)
         rpm = safe(self.drone.get_motors_rpm)
         battery = safe(self.drone.get_battery_status)
-
+        
+        if not self._gyro_printed:
+            print(f"[DEBUG] Гироскоп: {gyro}")
+            print(f"[DEBUG] Акселерометр: {accel}")
+            print(f"[DEBUG] Позиция LPS: {pos}")
+            print(f"[DEBUG] Ориентация: {att}")
+            print(f"[DEBUG] Батарея: {battery}")
+            self._gyro_printed = True
+        
         return pos, vel, att, accel, gyro, mag, rpm, battery
 
     def make_log(self):
         pos, vel, att, accel, gyro, mag, rpm, battery = self.get_telemetry()
         t = time.time() - self.experiment_start_time if self.experiment_start_time else 0
-
+        
         def safe_get(obj, key):
             if obj is None: return None
             if isinstance(key, str) and hasattr(obj, key): return getattr(obj, key)
             try: return obj[key]
             except (TypeError, IndexError, KeyError): return None
-
+        
         return {
             "timestamp": time.time(),
             "t": t,
@@ -221,16 +239,17 @@ class DroneController:
 
     def monitor(self):
         print(f"[{self.drone_id}] Цикл мониторинга запущен.")
+        iteration = 0
         while self.is_logging.is_set():
             try:
                 if not self.drone or not self.logger:
                     time.sleep(self.interval)
                     continue
-
+                
                 log = self.make_log()
                 self.logger.write(log)
                 self.realtime.update(log)
-
+                
                 with self.buffer_lock:
                     self.time_buffer.append(log["t"])
                     self.x_buffer.append(log["x"])
@@ -240,6 +259,10 @@ class DroneController:
                     self.ay_buffer.append(log["ay"])
                     self.az_buffer.append(log["az"])
                     self.battery_buffer.append(log["battery"])
+                
+                iteration += 1
+                if iteration % 20 == 0:
+                    print(f"[{self.drone_id}] Логирование: {iteration} итераций, t={log['t']:.2f}s, bat={log['battery']}V")
                     
             except Exception as e:
                 print(f"[{self.drone_id}] Ошибка логирования: {e}")
@@ -262,10 +285,12 @@ class DroneController:
         max_iterations = int(self.reps * 15 / self.interval)
         start_time = time.time()
         
-        for _ in range(max_iterations):
+        for i in range(max_iterations):
             if not self.is_logging.is_set():
+                print(f"[{self.drone_id}] Логирование остановлено, завершаем hover")
                 break
             if time.time() - start_time > self.reps * 15:
+                print(f"[{self.drone_id}] Превышено время hover")
                 break
             self.goto(0, 0, self.alt)
             time.sleep(self.interval)
@@ -342,13 +367,15 @@ class DroneController:
         if self.no_fly:
             print(f"[{self.drone_id}] Режим симуляции (no_fly=True). Полёт не выполняется.")
             return
-
+        
         self._require_connection()
         self.takeoff_and_hover()
         self.start_logging()
         
         try:
+            print(f"[{self.drone_id}] Запуск паттерна: {self.pattern}")
             fn()
+            print(f"[{self.drone_id}] Паттерн завершён")
         except Exception as e:
             print(f"[{self.drone_id}] Ошибка выполнения паттерна: {e}")
         finally:
@@ -365,7 +392,10 @@ class DroneController:
     def execute_pattern(self, pattern: str):
         if not self.drone:
             raise RuntimeError("Дрон не подключён")
-
+        
+        print(f"[{self.drone_id}] Выполнение паттерна: {pattern}")
+        self.pattern = pattern
+        
         patterns = {
             "hover": self.hover, "line": self.line, "backforth": self.backforth,
             "square": self.square, "rectangle": self.rectangle, "triangle": self.triangle,
@@ -375,7 +405,7 @@ class DroneController:
         fn = patterns.get(pattern)
         if not fn:
             raise ValueError(f"Неизвестный паттерн: {pattern}")
-
+        
         if self.barrier:
             try:
                 print(f"[{self.drone_id}] Ожидание синхронизации...")
@@ -383,6 +413,6 @@ class DroneController:
             except BrokenBarrierError:
                 print(f"[{self.drone_id}] Синхронизация нарушена. Прерывание.")
                 return
-
+        
         self._run_pattern(fn)
         print(f"[{self.drone_id}] Миссия завершена.")
