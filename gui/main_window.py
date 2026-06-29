@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt, QTimer
 from config.config import load_drones, save_drones
 from backend.fleet_manager import FleetManager
 from gui.realtime_plot import RealtimePlot
+from gui.trajectory_3d import Trajectory3D
 
 class PatternDelegate(QStyledItemDelegate):
     PATTERNS = ["hover", "line", "backforth", "square", "rectangle",
@@ -72,6 +73,10 @@ class MainWindow(QMainWindow):
         self.tab_control = QWidget()
         self.setup_control_tab()
         self.tabs.addTab(self.tab_control, "2. Полёт и Графики")
+        
+        self.tab_3d = QWidget()
+        self.setup_3d_tab()
+        self.tabs.addTab(self.tab_3d, "3. 3D Траектории")
 
         self.refresh_table()
 
@@ -178,6 +183,13 @@ class MainWindow(QMainWindow):
         
         control_panel.addLayout(btn_layout)
         layout.addLayout(control_panel)
+
+    def setup_3d_tab(self):
+        layout = QVBoxLayout(self.tab_3d)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        self.trajectory_widget = Trajectory3D(None)
+        layout.addWidget(self.trajectory_widget)
 
     def update_status_label(self):
         if self.fleet and hasattr(self.fleet, 'status'):
@@ -335,6 +347,8 @@ class MainWindow(QMainWindow):
                 pattern=primary["pattern"], duration=primary.get("duration", 60.0),
                 no_fly=primary.get("no_fly", False)
             )
+            
+            self.trajectory_widget.fleet = self.fleet
             
             self.is_running = True
             self.btn_start.setEnabled(False)

@@ -185,6 +185,7 @@ class DroneController:
         att = safe(self.drone.get_orientation)
         accel = safe(self.drone.get_accel)
         gyro = safe(self.drone.get_gyro)
+        print(f"[DEBUG] Гироскоп: {gyro}")
         mag = safe(self.drone.get_mag)
         rpm = safe(self.drone.get_motors_rpm)
         battery = safe(self.drone.get_battery_status)
