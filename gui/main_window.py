@@ -333,12 +333,14 @@ class MainWindow(QMainWindow):
         
         self.save_to_json()
 
+        drones_data = load_drones()
+
         print(f"[GUI] Запуск флота...")
         print(f"[GUI] Загружено дронов: {len(drones_data)}")
         for d in drones_data:
             print(f"[GUI]   - {d['id']}: {d['ip']}:{d['port']}, pattern={d['pattern']}, no_fly={d['no_fly']}")
 
-        drones_data = load_drones()
+
         if not drones_data:
             QMessageBox.critical(self, "Ошибка", "Список дронов пуст!")
             return
